@@ -9,6 +9,7 @@ export interface LocationResolutionResult {
   longitude: number;
   timezoneOffset: number;
   timezoneName?: string;
+  ianaTimeZone?: string;
   localNotFound?: boolean;
   message?: string;
   error?: string;
@@ -31,6 +32,7 @@ export async function searchInternetLocation(query: string): Promise<{
   lng: number;
   timezoneOffset: number;
   timezoneName?: string;
+  ianaTimeZone?: string;
   error?: string;
 }> {
   const trimmed = query.trim();
@@ -178,6 +180,7 @@ export async function resolveLocationWithFallback(
       latitude: localMatch.lat,
       longitude: localMatch.lng,
       timezoneOffset: localMatch.timezoneOffset,
+      ianaTimeZone: localMatch.ianaTimeZone,
       localNotFound: false,
       message: `Ubicación confirmada en la base de datos local (${localMatch.name}, ${localMatch.country}).`,
     };
@@ -186,6 +189,7 @@ export async function resolveLocationWithFallback(
   // 2. Not found in local database -> Search on the Internet
   const internetResult = await searchInternetLocation(trimmed);
   if (internetResult.success) {
+    const resolvedIana = internetResult.ianaTimeZone || internetResult.timezoneName;
     return {
       found: true,
       source: 'internet',
@@ -195,6 +199,7 @@ export async function resolveLocationWithFallback(
       longitude: internetResult.lng,
       timezoneOffset: internetResult.timezoneOffset,
       timezoneName: internetResult.timezoneName,
+      ianaTimeZone: resolvedIana,
       localNotFound: true,
       message: `La ubicación no se encontró en la base de datos local. Se encontró en Internet: "${internetResult.name}". Coordenadas y huso horario sincronizados.`,
     };

@@ -99,6 +99,7 @@ app.get('/api/geocode', async (req, res) => {
       lng,
       timezoneOffset,
       timezoneName,
+      ianaTimeZone: timezoneName,
       country: firstResult.address?.country,
       city: firstResult.address?.city || firstResult.address?.town || firstResult.address?.village,
     });

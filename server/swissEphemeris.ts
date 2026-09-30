@@ -19,6 +19,7 @@ import {
 } from '../src/utils/anthroposophyEngine';
 import { HOUSE_THEMES, PLANET_INFO, ZODIAC_SIGNS } from '../src/utils/astrologyEngine';
 import { getTransitExplanation } from '../src/utils/transitExplanations';
+import { calculateHistoricalTimezoneOffset } from '../src/data/cities';
 
 // Initialize Swiss Ephemeris path
 const ephePath = path.resolve(process.cwd(), 'ephe');
@@ -35,7 +36,7 @@ const DEFAULT_FLAGS = SEFLG_SPEED | SEFLG_SWIEPH;
 const FALLBACK_FLAGS = SEFLG_SPEED | SEFLG_MOSEPH;
 
 // Swiss Ephemeris Celestial Body IDs
-const SE_BODIES: { id: PlanetId; sweId: number; name: string }[] = [
+const SE_BODIES_BASE: { id: PlanetId; sweId: number; name: string }[] = [
   { id: 'sun', sweId: 0, name: 'Sol' },
   { id: 'moon', sweId: 1, name: 'Luna' },
   { id: 'mercury', sweId: 2, name: 'Mercurio' },
@@ -46,23 +47,57 @@ const SE_BODIES: { id: PlanetId; sweId: number; name: string }[] = [
   { id: 'uranus', sweId: 7, name: 'Urano' },
   { id: 'neptune', sweId: 8, name: 'Neptuno' },
   { id: 'pluto', sweId: 9, name: 'Plutón' },
-  { id: 'northNode', sweId: 11, name: 'Nodo Lunar Norte' }, // SE_TRUE_NODE
+  { id: 'northNode', sweId: 11, name: 'Nodo Lunar Norte' }, // SE_TRUE_NODE (11) or SE_MEAN_NODE (10)
   { id: 'chiron', sweId: 15, name: 'Quirón' },
+  { id: 'lilith', sweId: 12, name: 'Lilith (Luna Negra)' }, // SE_MEAN_APOG = 12
 ];
 
-export function degToSign(degrees: number): {
+export interface DegToSignResult {
   sign: ZodiacSign;
   degreeInSign: number;
   minuteInSign: number;
-} {
-  const norm = ((degrees % 360) + 360) % 360;
-  const signIndex = Math.floor(norm / 30);
-  const sign = ZODIAC_SIGNS[signIndex]?.sign || 'Aries';
-  const rem = norm - signIndex * 30;
-  const degreeInSign = Math.floor(rem);
-  const minuteInSign = Math.floor((rem - degreeInSign) * 60);
+  secondInSign: number;
+  formatted: string;
+  formattedShort: string;
+}
 
-  return { sign, degreeInSign, minuteInSign };
+/**
+ * Convierte longitud eclíptica continua (0-360°) a coordenadas zodiacales exactas.
+ * Realiza redondeo astronómico con propagación estricta de acarreo:
+ * 29° 59' 59.6" se redondea correctamente a 0° 00' 00" del signo siguiente,
+ * eliminando por completo valores inválidos como 30° o 60'.
+ */
+export function degToSign(degrees: number, roundTo: 'second' | 'minute' = 'second'): DegToSignResult {
+  const normDeg = ((degrees % 360) + 360) % 360;
+  let totalSeconds = Math.round(normDeg * 3600);
+
+  if (roundTo === 'minute') {
+    totalSeconds = Math.round(totalSeconds / 60) * 60;
+  }
+
+  // Normalizar segundos totales al círculo completo (1,296,000 segundos de arco en 360°)
+  const CIRCLE_SECONDS = 360 * 3600;
+  totalSeconds = ((totalSeconds % CIRCLE_SECONDS) + CIRCLE_SECONDS) % CIRCLE_SECONDS;
+
+  const SIGN_SECONDS = 30 * 3600; // 108,000 segundos por signo
+  const signIndex = Math.floor(totalSeconds / SIGN_SECONDS);
+  const remSeconds = totalSeconds % SIGN_SECONDS;
+
+  const degreeInSign = Math.floor(remSeconds / 3600);
+  const minuteInSign = Math.floor((remSeconds % 3600) / 60);
+  const secondInSign = remSeconds % 60;
+
+  const sign = ZODIAC_SIGNS[signIndex % 12]?.sign || 'Aries';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return {
+    sign,
+    degreeInSign,
+    minuteInSign,
+    secondInSign,
+    formatted: `${degreeInSign}° ${pad(minuteInSign)}' ${pad(secondInSign)}" ${sign}`,
+    formattedShort: `${degreeInSign}° ${pad(minuteInSign)}' ${sign}`,
+  };
 }
 
 function getHouseNumber(longitude: number, cuspLongitudes: number[]): number {
@@ -82,7 +117,18 @@ function getHouseNumber(longitude: number, cuspLongitudes: number[]): number {
 export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalculationResult {
   const [bYear, bMonth, bDay] = birthData.birthDate.split('-').map(Number);
   const [bHour, bMin] = birthData.birthTime.split(':').map(Number);
-  const tz = Number(birthData.timezoneOffset);
+  let tz = Number(birthData.timezoneOffset);
+
+  // Use historical IANA timezone calculation if provided or infer from coordinates/popular cities
+  if (birthData.ianaTimeZone) {
+    tz = calculateHistoricalTimezoneOffset(
+      birthData.ianaTimeZone,
+      birthData.birthDate,
+      birthData.birthTime,
+      tz
+    );
+  }
+
   const latitude = Number(birthData.latitude);
   const longitude = Number(birthData.longitude);
 
@@ -113,21 +159,34 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
   const ascendantLon = housesResult.data?.points?.[0] ?? 0;
   const midheavenLon = housesResult.data?.points?.[1] ?? 0;
 
-  // Build HouseCusp list
+  // Build HouseCusp list with exact rounding & carry-over
   const houses: HouseCusp[] = cuspLongitudes.map((cuspLon, idx) => {
     const houseNum = idx + 1;
-    const { sign, degreeInSign, minuteInSign } = degToSign(cuspLon);
+    const details = degToSign(cuspLon);
     return {
       house: houseNum,
       longitude: cuspLon,
-      sign,
-      degreeInSign,
-      minuteInSign,
+      sign: details.sign,
+      degreeInSign: details.degreeInSign,
+      minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       theme: HOUSE_THEMES[houseNum] || '',
     };
   });
 
-  // Calculate Planets
+  // Calculate Planets with selected Lunar Node mode (True Node 11 vs Mean Node 10)
+  const nodeSweId = birthData.nodeType === 'true' ? 11 : 10;
+  const SE_BODIES = SE_BODIES_BASE.map((item) =>
+    item.id === 'northNode'
+      ? {
+          ...item,
+          sweId: nodeSweId,
+          name: birthData.nodeType === 'true' ? 'Nodo Lunar Verdadero' : 'Nodo Lunar Medio',
+        }
+      : item
+  );
+
   const planets: PlanetPosition[] = [];
 
   for (const item of SE_BODIES) {
@@ -140,7 +199,7 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     const lon = ((calc.data[0] % 360) + 360) % 360;
     const speed = calc.data[3];
     const isRetro = speed < 0;
-    const { sign, degreeInSign, minuteInSign } = degToSign(lon);
+    const details = degToSign(lon);
     const house = getHouseNumber(lon, cuspLongitudes);
     const info = PLANET_INFO[item.id];
 
@@ -149,9 +208,11 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
       name: info?.name || item.name,
       symbol: info?.symbol || '✦',
       longitude: lon,
-      sign,
-      degreeInSign,
-      minuteInSign,
+      sign: details.sign,
+      degreeInSign: details.degreeInSign,
+      minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       house,
       isRetrograde: isRetro,
       color: info?.color || '#f59e0b',
@@ -174,6 +235,8 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     sign: southNodeSign.sign,
     degreeInSign: southNodeSign.degreeInSign,
     minuteInSign: southNodeSign.minuteInSign,
+    secondInSign: southNodeSign.secondInSign,
+    formatted: southNodeSign.formatted,
     house: southNodeHouse,
     isRetrograde: northNode.isRetrograde,
     color: southInfo.color,
@@ -191,6 +254,8 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     sign: ascSign.sign,
     degreeInSign: ascSign.degreeInSign,
     minuteInSign: ascSign.minuteInSign,
+    secondInSign: ascSign.secondInSign,
+    formatted: ascSign.formatted,
     house: 1,
     color: ascInfo.color,
     meaning: ascInfo.defaultMeaning,
@@ -207,6 +272,8 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     sign: mcSign.sign,
     degreeInSign: mcSign.degreeInSign,
     minuteInSign: mcSign.minuteInSign,
+    secondInSign: mcSign.secondInSign,
+    formatted: mcSign.formatted,
     house: 10,
     color: mcInfo.color,
     meaning: mcInfo.defaultMeaning,
@@ -275,7 +342,7 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     const lon = ((calc.data[0] % 360) + 360) % 360;
     const speed = calc.data[3];
     const isRetro = speed < 0;
-    const { sign, degreeInSign, minuteInSign } = degToSign(lon);
+    const details = degToSign(lon);
     const house = getHouseNumber(lon, cuspLongitudes);
     const info = PLANET_INFO[item.id];
 
@@ -284,13 +351,15 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
       name: `${info?.name || item.name} en Tránsito`,
       symbol: info?.symbol || '✦',
       longitude: lon,
-      sign,
-      degreeInSign,
-      minuteInSign,
+      sign: details.sign,
+      degreeInSign: details.degreeInSign,
+      minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       house,
       isRetrograde: isRetro,
       color: '#fbbf24',
-      meaning: `Posición celeste actual en ${sign} ${degreeInSign}° (Casa ${house} natal).`,
+      meaning: `Posición celeste actual en ${details.sign} ${details.degreeInSign}° (Casa ${house} natal).`,
     });
   }
 

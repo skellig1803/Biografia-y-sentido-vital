@@ -29,6 +29,7 @@ export type PlanetId =
   | 'northNode'
   | 'southNode'
   | 'chiron'
+  | 'lilith'
   | 'ascendant'
   | 'midheaven';
 
@@ -40,6 +41,8 @@ export interface BirthData {
   latitude: number;
   longitude: number;
   timezoneOffset: number; // in hours from UTC, e.g. -5, -3, +1
+  ianaTimeZone?: string; // Standard IANA identifier (e.g. Europe/Madrid)
+  nodeType?: 'true' | 'mean'; // 'mean' for Mean Lunar Node (default) or 'true' for True Lunar Node
   locationSource?: 'local' | 'internet' | 'manual';
   resolvedPlaceName?: string;
   locationStatus?: 'verified' | 'unverified' | 'searching' | 'error';
@@ -53,6 +56,8 @@ export interface PlanetPosition {
   sign: ZodiacSign;
   degreeInSign: number;
   minuteInSign: number;
+  secondInSign?: number;
+  formatted?: string;
   house: number; // 1 to 12
   isRetrograde?: boolean;
   color: string;
@@ -65,6 +70,8 @@ export interface HouseCusp {
   sign: ZodiacSign;
   degreeInSign: number;
   minuteInSign: number;
+  secondInSign?: number;
+  formatted?: string;
   theme: string;
 }
 

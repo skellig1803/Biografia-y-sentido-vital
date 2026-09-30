@@ -184,7 +184,6 @@ export const PlanetaryTable: React.FC<PlanetaryTableProps> = ({
                   <th className="py-3 px-3.5">Grado Exacto</th>
                   <th className="py-3 px-3.5">Casa (Plácidus)</th>
                   <th className="py-3 px-3.5">Movimiento</th>
-                  <th className="py-3 px-3.5">Significado Esencial & Arquetipo</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-800/60 font-sans">
@@ -225,6 +224,9 @@ export const PlanetaryTable: React.FC<PlanetaryTableProps> = ({
                       <td className="py-3 px-3.5 font-mono text-stone-200">
                         <span className="font-semibold text-amber-300">
                           {planet.degreeInSign}° {planet.minuteInSign.toString().padStart(2, '0')}&apos;
+                          {planet.secondInSign !== undefined && (
+                            <span className="text-stone-400 font-normal"> {planet.secondInSign.toString().padStart(2, '0')}&quot;</span>
+                          )}
                         </span>
                       </td>
                       <td className="py-3 px-3.5">
@@ -240,9 +242,6 @@ export const PlanetaryTable: React.FC<PlanetaryTableProps> = ({
                         ) : (
                           <span className="text-stone-500 text-[10px]">Directo</span>
                         )}
-                      </td>
-                      <td className="py-3 px-3.5 text-stone-400 max-w-sm leading-relaxed">
-                        {planet.meaning}
                       </td>
                     </tr>
                   );

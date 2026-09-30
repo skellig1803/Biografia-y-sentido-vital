@@ -9,6 +9,7 @@ import {
   calculateSeptenioData,
   calculateYearOfLifeAnalysis,
 } from './anthroposophyEngine';
+import { calculateHistoricalTimezoneOffset } from '../data/cities';
 import { BirthData, NatalChartCalculationResult } from '../types';
 
 export async function calculateSwissChartAsync(
@@ -39,6 +40,16 @@ export function calculateCompleteChart(birthData: BirthData): NatalChartCalculat
   const [bYear, bMonth, bDay] = birthData.birthDate.split('-').map(Number);
   const [bHour, bMin] = birthData.birthTime.split(':').map(Number);
 
+  let tz = Number(birthData.timezoneOffset);
+  if (birthData.ianaTimeZone) {
+    tz = calculateHistoricalTimezoneOffset(
+      birthData.ianaTimeZone,
+      birthData.birthDate,
+      birthData.birthTime,
+      tz
+    );
+  }
+
   const exactAge = calculateExactAge(birthData.birthDate, birthData.birthTime);
 
   const { planets, houses } = calculatePlanetaryPositions(
@@ -47,7 +58,7 @@ export function calculateCompleteChart(birthData: BirthData): NatalChartCalculat
     bDay,
     bHour,
     bMin,
-    birthData.timezoneOffset,
+    tz,
     birthData.latitude,
     birthData.longitude
   );

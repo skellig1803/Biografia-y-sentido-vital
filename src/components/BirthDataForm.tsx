@@ -94,22 +94,30 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
     try {
       const internetRes = await searchInternetLocation(trimmed);
       if (internetRes.success) {
+        const iana = internetRes.ianaTimeZone || internetRes.timezoneName || '';
+        const dynamicOffset = iana
+          ? calculateHistoricalTimezoneOffset(iana, formData.birthDate, formData.birthTime, internetRes.timezoneOffset)
+          : internetRes.timezoneOffset;
+        if (iana) setActiveIanaTimeZone(iana);
+
         setFormData((prev) => ({
           ...prev,
           placeName: trimmed,
           resolvedPlaceName: internetRes.name,
           latitude: internetRes.lat,
           longitude: internetRes.lng,
-          timezoneOffset: internetRes.timezoneOffset,
+          timezoneOffset: dynamicOffset,
+          ianaTimeZone: iana,
           locationSource: 'internet',
           locationStatus: 'verified',
         }));
         setLocationSource('internet');
         setLocationError(null);
+        const isDst = dynamicOffset !== internetRes.timezoneOffset;
         setLocationNotice({
           type: 'internet',
           text: 'Ubicación encontrada en Internet (no estaba en la base de datos local).',
-          details: `${internetRes.name} • Coordenadas: ${internetRes.lat.toFixed(4)}°, ${internetRes.lng.toFixed(4)}° • Huso horario sincronizado: UTC ${internetRes.timezoneOffset >= 0 ? '+' : ''}${internetRes.timezoneOffset}h (${internetRes.timezoneName || 'detectado'}).`,
+          details: `${internetRes.name} • Coordenadas: ${internetRes.lat.toFixed(4)}°, ${internetRes.lng.toFixed(4)}° • Huso horario astronómico: UTC ${dynamicOffset >= 0 ? '+' : ''}${dynamicOffset}h (${iana || 'detectado'})${isDst ? ' (Horario estacional / DST verificado)' : ''}.`,
         });
       } else {
         setLocationError(
@@ -156,6 +164,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
       latitude: city.lat,
       longitude: city.lng,
       timezoneOffset: dynamicOffset,
+      ianaTimeZone: iana,
       locationSource: 'local',
       locationStatus: 'verified',
     }));
@@ -204,6 +213,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
         latitude: localMatch.lat,
         longitude: localMatch.lng,
         timezoneOffset: dynamicOffset,
+        ianaTimeZone: iana,
         locationSource: 'local',
         resolvedPlaceName: fullName,
         locationStatus: 'verified',
@@ -362,7 +372,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
                       formData.timezoneOffset
                     );
                   }
-                  setFormData({ ...formData, birthDate: newDate, timezoneOffset: newOffset });
+                  setFormData({ ...formData, birthDate: newDate, timezoneOffset: newOffset, ianaTimeZone: activeIanaTimeZone });
                 }}
                 className="w-full pl-10 pr-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 text-sm transition-all"
               />
@@ -394,7 +404,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
                       formData.timezoneOffset
                     );
                   }
-                  setFormData({ ...formData, birthTime: newTime, timezoneOffset: newOffset });
+                  setFormData({ ...formData, birthTime: newTime, timezoneOffset: newOffset, ianaTimeZone: activeIanaTimeZone });
                 }}
                 className="w-full pl-10 pr-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 text-sm transition-all"
               />

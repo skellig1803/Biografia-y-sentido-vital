@@ -49,6 +49,7 @@ export const PLANET_INFO: Record<
   northNode: { name: 'Nodo Lunar Norte', symbol: '☊', color: '#22c55e', defaultMeaning: 'Dharma: dirección evolutiva, brújula del alma y destino a conquistar.' },
   southNode: { name: 'Nodo Lunar Sur', symbol: '☋', color: '#e11d48', defaultMeaning: 'Karma: memoria acumulada, talentos innatos y zona de confort a trascender.' },
   chiron: { name: 'Quirón', symbol: '⚷', color: '#d97706', defaultMeaning: 'El sanador herido: vulnerabilidad primaria que se transmuta en sabiduría y servicio.' },
+  lilith: { name: 'Lilith (Luna Negra)', symbol: '⚸', color: '#6b21a8', defaultMeaning: 'La sombra femenina, instinto reprimido, magnetismo oculto y empoderamiento primordial.' },
   ascendant: { name: 'Ascendente (AC)', symbol: 'AC', color: '#fb923c', defaultMeaning: 'La puerta de entrada a la encarnación terrenal y cómo nos proyectamos al mundo.' },
   midheaven: { name: 'Medio Cielo (MC)', symbol: 'MC', color: '#a3e635', defaultMeaning: 'La cumbre de la vocación, realización pública y propósito social superior.' },
 };
@@ -68,19 +69,49 @@ export const HOUSE_THEMES: Record<number, string> = {
   12: 'Inconsciente colectivo, retiro espiritual, misterio y disolución kármica.',
 };
 
-// Convert degrees to [Sign, degree, minute]
-export function degToSignDetails(longitude: number): {
+export interface DegToSignDetailsResult {
   sign: ZodiacSign;
   degreeInSign: number;
   minuteInSign: number;
-} {
-  const norm = ((longitude % 360) + 360) % 360;
-  const signIndex = Math.floor(norm / 30);
-  const sign = ZODIAC_SIGNS[signIndex].sign;
-  const rem = norm - signIndex * 30;
-  const degreeInSign = Math.floor(rem);
-  const minuteInSign = Math.floor((rem - degreeInSign) * 60);
-  return { sign, degreeInSign, minuteInSign };
+  secondInSign: number;
+  formatted: string;
+  formattedShort: string;
+}
+
+// Convert degrees to [Sign, degree, minute, second] with strict carry-over rounding
+export function degToSignDetails(
+  longitude: number,
+  roundTo: 'second' | 'minute' = 'second'
+): DegToSignDetailsResult {
+  const normDeg = ((longitude % 360) + 360) % 360;
+  let totalSeconds = Math.round(normDeg * 3600);
+
+  if (roundTo === 'minute') {
+    totalSeconds = Math.round(totalSeconds / 60) * 60;
+  }
+
+  const CIRCLE_SECONDS = 360 * 3600;
+  totalSeconds = ((totalSeconds % CIRCLE_SECONDS) + CIRCLE_SECONDS) % CIRCLE_SECONDS;
+
+  const SIGN_SECONDS = 30 * 3600;
+  const signIndex = Math.floor(totalSeconds / SIGN_SECONDS);
+  const remSeconds = totalSeconds % SIGN_SECONDS;
+
+  const degreeInSign = Math.floor(remSeconds / 3600);
+  const minuteInSign = Math.floor((remSeconds % 3600) / 60);
+  const secondInSign = remSeconds % 60;
+
+  const sign = ZODIAC_SIGNS[signIndex % 12]?.sign || 'Aries';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return {
+    sign,
+    degreeInSign,
+    minuteInSign,
+    secondInSign,
+    formatted: `${degreeInSign}° ${pad(minuteInSign)}' ${pad(secondInSign)}" ${sign}`,
+    formattedShort: `${degreeInSign}° ${pad(minuteInSign)}' ${sign}`,
+  };
 }
 
 // Convert Julian Date to standard Julian Day Number
@@ -271,6 +302,8 @@ export function calculatePlanetaryPositions(
       sign: details.sign,
       degreeInSign: details.degreeInSign,
       minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       house,
       isRetrograde: p.isRetrograde || false,
       color: info.color,
@@ -361,6 +394,8 @@ export function calculateHousesPlacidus(
       sign: details.sign,
       degreeInSign: details.degreeInSign,
       minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       theme: HOUSE_THEMES[houseNum],
     };
   });
@@ -408,6 +443,8 @@ export function calculateHouses(
       sign: details.sign,
       degreeInSign: details.degreeInSign,
       minuteInSign: details.minuteInSign,
+      secondInSign: details.secondInSign,
+      formatted: details.formatted,
       theme: HOUSE_THEMES[i],
     });
   }
