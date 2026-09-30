@@ -1,0 +1,6 @@
+{
+  "name": "Carta Natal y Biografía Antroposófica",
+  "description": "Calcula carta natal con Efemérides Suizas de alta precisión, eje de nodos lunares y biografía antroposófica con septenios de Steiner, dirección del alma y tránsitos planetarios interactivos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
