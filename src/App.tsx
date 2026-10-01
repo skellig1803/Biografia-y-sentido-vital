@@ -10,6 +10,8 @@ import { YearOfLifeCard } from './components/YearOfLifeCard';
 import { TransitsPanel } from './components/TransitsPanel';
 import { DeepSynthesisCard } from './components/DeepSynthesisCard';
 import { PlanetaryTable } from './components/PlanetaryTable';
+import { CreditModal } from './components/CreditModal';
+import { getCreditBalance, subscribeToCredits } from './utils/creditManager';
 import {
   TableProperties,
   Compass,
@@ -41,6 +43,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSwissPrecision, setIsSwissPrecision] = useState(true);
+  const [creditBalance, setCreditBalance] = useState<number>(() => getCreditBalance());
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+
+  // Subscribe to credit balance changes
+  useEffect(() => {
+    const unsubscribe = subscribeToCredits((newBalance) => {
+      setCreditBalance(newBalance);
+    });
+    return unsubscribe;
+  }, []);
 
   // Initialize with local calculation and update with Swiss Ephemeris
   const [calculationResult, setCalculationResult] = useState<NatalChartCalculationResult>(() => {
@@ -86,12 +98,16 @@ export default function App() {
     { id: 'lunarNodes', label: 'Nodo Lunar & Dirección', icon: <Compass className="w-4 h-4" />, badge: calculationResult.lunarNodes.northNode.sign },
     { id: 'yearOfLife', label: 'Año de Vida', icon: <SunMedium className="w-4 h-4" />, badge: `Año ${calculationResult.yearOfLife.currentYearOfLife}` },
     { id: 'transits', label: 'Tránsitos Planetarios', icon: <Sparkles className="w-4 h-4" />, badge: `${calculationResult.currentTransits.activeTransits.length}` },
-    { id: 'synthesis', label: 'Lectura Integral', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'synthesis', label: 'Lectura Integral', icon: <BookOpen className="w-4 h-4" />, badge: 'IA' },
   ];
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-200">
-      <Header hasCalculated={true} />
+      <Header
+        hasCalculated={true}
+        creditBalance={creditBalance}
+        onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Formulario de Entrada */}
@@ -391,16 +407,26 @@ export default function App() {
           )}
 
           {activeTab === 'synthesis' && (
-            <DeepSynthesisCard calculation={calculationResult} />
+            <DeepSynthesisCard
+              calculation={calculationResult}
+              onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+            />
           )}
         </div>
       </main>
+
+      {/* Modal de Monedero y Recarga de Créditos */}
+      <CreditModal
+        isOpen={isCreditModalOpen}
+        onClose={() => setIsCreditModalOpen(false)}
+        onCreditsUpdated={(newBal) => setCreditBalance(newBal)}
+      />
 
       {/* Footer */}
       <footer className="border-t border-stone-800 bg-stone-900/50 py-6 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            Carta Natal y Biografía Antroposófica • Cálculos astronómicos, eje kármico de Steiner & tránsitos en tiempo real
+            Faro Biográfico • Cálculos astronómicos, eje kármico de Steiner & tránsitos en tiempo real
           </p>
           <div className="flex items-center gap-4 text-stone-400">
             <span>Rudolf Steiner</span>

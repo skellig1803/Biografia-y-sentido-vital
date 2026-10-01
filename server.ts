@@ -32,6 +32,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Billing & Pricing Configuration endpoint
+app.get('/api/billing/config', (req, res) => {
+  res.json({
+    currency: 'USD',
+    plans: [
+      { id: 'pack_single', credits: 1, price: 3.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_SINGLE || null },
+      { id: 'pack_family', credits: 5, price: 14.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_PACK5 || null },
+      { id: 'pack_professional', credits: 15, price: 29.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_PACK15 || null },
+    ],
+    hasLiveStripe: Boolean(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_PAYMENT_LINK_SINGLE),
+  });
+});
+
 // Online Geocoding endpoint using OpenStreetMap (Nominatim) & Open-Meteo for Timezone
 app.get('/api/geocode', async (req, res) => {
   const query = req.query.q as string;
@@ -144,17 +157,23 @@ app.post('/api/synthesis', async (req, res) => {
   try {
     const {
       name,
-      birthDate,
-      birthTime,
-      placeName,
       exactAgeFormatted,
-      currentSeptenio,
-      lunarNodes,
-      yearOfLife,
       sunSign,
       moonSign,
       ascendantSign,
+      septenioCode,
+      nodalAxisCode,
+      profectionCode,
+      natalAspectCodes,
+      transitCodes,
+      // Backward-compatibility keys
+      currentSeptenio,
+      lunarNodes,
+      yearOfLife,
+      aspects,
       activeTransits,
+      isRegeneration,
+      regenerationCount,
     } = req.body;
 
     const ai = getGeminiClient();
@@ -166,36 +185,92 @@ app.post('/api/synthesis', async (req, res) => {
       });
     }
 
-    const prompt = `
-Eres un sabio biógrafo antroposófico (siguiendo a Rudolf Steiner y Bernard Lievegoed) y un astrólogo humanista y kármico de primer nivel.
-Genera una lectura biográfica, evolutiva y espiritual profunda, cálida y personalizada para:
+    // Concise representation of astrological markers to minimize input tokens
+    const septenioStr =
+      septenioCode ||
+      (currentSeptenio
+        ? `${currentSeptenio.number}° Septenio (${currentSeptenio.ageRange}) - ${currentSeptenio.archetypalTitle} [${currentSeptenio.planetarySphere}]`
+        : 'Septenio actual');
 
-- Nombre: ${name}
-- Fecha y Hora de Nacimiento: ${birthDate} a las ${birthTime} en ${placeName}
-- Edad Exacta: ${exactAgeFormatted}
-- Sol en ${sunSign}, Luna en ${moonSign}, Ascendente en ${ascendantSign}
-- Septenio Actual: ${currentSeptenio?.ageRange} — "${currentSeptenio?.archetypalTitle}" (Fase: ${currentSeptenio?.phase}, Esfera Planetaria: ${currentSeptenio?.planetarySphere})
-- Eje Nodal Lunar:
-  * Nodo Norte (Dharma / Destino a Conquistar): en ${lunarNodes?.northNode?.sign} (Casa ${lunarNodes?.northNode?.house})
-  * Nodo Sur (Karma / Memoria / Zona de Confort): en ${lunarNodes?.southNode?.sign} (Casa ${lunarNodes?.southNode?.house})
-- Análisis del Año de Vida Actual: ${yearOfLife?.annualCoreTheme} (Profección Casa ${yearOfLife?.profectionHouse}, Regente: ${yearOfLife?.lordOfYear})
-- Tránsitos Planetarios Activos en este momento:
-  ${activeTransits?.slice(0, 5)?.map((t: any) => `- ${t.name}: ${t.biographicalImpact}`).join('\n') || 'Tránsitos en curso activando la carta natal.'}
+    const nodesStr =
+      nodalAxisCode ||
+      (lunarNodes
+        ? `NN en ${lunarNodes.northNode?.sign} (C${lunarNodes.northNode?.house}) / NS en ${lunarNodes.southNode?.sign} (C${lunarNodes.southNode?.house})`
+        : 'Eje Nodal activo');
 
-Escribe una guía estructurada en español, con tono elevado, empático, lúcido y sin lugares comunes ni jerga fría.
-Estructura tu respuesta en 4 secciones claras con títulos en negrita:
-1. **La Esencia Biográfica y el Reto del Septenio Presente** (Explica qué fuerza anímica o espiritual está naciendo según la antroposofía, qué máscaras se deben soltar y cuál es el gran desafío evolutivo de su edad exacta).
-2. **La Brújula del Alma: El Eje de los Nodos Lunares** (Qué talentos y comodidades del Nodo Sur ya no le sirven, y qué acción concreta y coraje le pide el Nodo Norte para cumplir su propósito kármico).
-3. **El Clima Vital del Año de Vida Actual** (Cómo canalizar la energía de la casa de profección activada y su planeta regente).
-4. **Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente** (Síntesis de cómo los tránsitos actuales empujan esta transformación y un consejo inspirador para su día a día).
-`;
+    const profectionStr =
+      profectionCode ||
+      (yearOfLife
+        ? `Año ${yearOfLife.currentYearOfLife} (Casa ${yearOfLife.profectionHouse} en ${yearOfLife.profectionSign}, Regente: ${yearOfLife.lordOfYear})`
+        : 'Casa de profección activa');
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-    });
+    // Only compact codes for aspects and transits
+    const aspectsStr =
+      Array.isArray(natalAspectCodes) && natalAspectCodes.length > 0
+        ? natalAspectCodes.slice(0, 6).join('; ')
+        : Array.isArray(aspects) && aspects.length > 0
+        ? aspects.slice(0, 6).map((a: any) => `${a.planet1?.name || ''} ${a.symbol || ''} ${a.planet2?.name || ''} (${(a.orb ?? 0).toFixed?.(1) || 0}°)`).join('; ')
+        : 'Aspectos natales calculados';
 
-    const readingText = response.text || '';
+    const transitsStr =
+      Array.isArray(transitCodes) && transitCodes.length > 0
+        ? transitCodes.slice(0, 5).join('; ')
+        : Array.isArray(activeTransits) && activeTransits.length > 0
+        ? activeTransits.slice(0, 5).map((t: any) => `Tr-${t.transitPlanet?.name || t.name} -> Nat-${t.natalPlanet?.name || ''} (${(t.orb ?? 0).toFixed?.(1) || 0}°)`).join('; ')
+        : 'Tránsitos activos del cielo';
+
+    const regenNote = isRegeneration
+      ? `\nREGENERACIÓN (Perspectiva #${regenerationCount || 2}): Aporta un prisma interpretativo renovado, fresco y complementario. Indaga en matices anímicos inéditos, polaridades de sombra a integrar, vocación profunda y prácticas vitales concretas según Steiner y Lievegoed.`
+      : '';
+
+    // Condensed system instruction: ~50 tokens
+    const systemInstruction = `Eres un sabio biógrafo antroposófico (Steiner/Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales y transformadores. Evita lugares comunes o clichés. Escribe en Markdown impecable con subtítulos ##, negritas precisas y listas claras.`;
+
+    // Condensed user prompt: ~120-150 tokens
+    const prompt = `Consultante: ${name || 'Consultante'} (${exactAgeFormatted || 'Edad actual'}).
+Luminarias/ASC: Sol en ${sunSign || 'N/A'}, Luna en ${moonSign || 'N/A'}, Ascendente en ${ascendantSign || 'N/A'}.
+Septenio: ${septenioStr}.
+Nodos Lunares: ${nodesStr}.
+Profección anual: ${profectionStr}.
+Aspectos natales clave: ${aspectsStr}.
+Tránsitos celestes activos: ${transitsStr}.${regenNote}
+
+Escribe una guía biográfica lúcida y personalizada estructurada en estas 4 secciones en Markdown:
+## 1. La Esencia Biográfica y el Reto del Septenio Presente
+## 2. La Brújula del Alma: El Eje de los Nodos Lunares
+## 3. El Clima Vital del Año de Vida Actual
+## 4. Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente`;
+
+    // Resilient generation with fallback across primary and fast model
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    let readingText = '';
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            temperature: isRegeneration ? 0.88 : 0.72,
+            maxOutputTokens: 1200,
+          },
+        });
+
+        if (response.text && response.text.trim().length > 0) {
+          readingText = response.text;
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Attempt with ${modelName} encountered error:`, err?.message || err);
+        lastError = err;
+      }
+    }
+
+    if (!readingText) {
+      throw lastError || new Error('No se pudo generar la lectura con los modelos de IA disponibles.');
+    }
 
     return res.json({
       success: true,
@@ -205,7 +280,7 @@ Estructura tu respuesta en 4 secciones claras con títulos en negrita:
     console.error('Error in /api/synthesis:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Error generating synthesis',
+      error: error.message || 'Error al generar la síntesis biográfica',
     });
   }
 });
@@ -228,7 +303,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Carta Natal & Biografía Antroposófica server running on port ${PORT}`);
+    console.log(`Faro Biográfico server running on port ${PORT}`);
   });
 }
 

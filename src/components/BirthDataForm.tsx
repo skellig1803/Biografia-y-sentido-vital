@@ -19,13 +19,94 @@ import {
   AlertTriangle,
   Loader2,
   Info,
+  History,
+  Trash2,
+  X,
+  RotateCcw,
 } from 'lucide-react';
+
+export interface RecentQuery {
+  id: string;
+  name: string;
+  birthDate: string;
+  birthTime: string;
+  placeName: string;
+  latitude: number;
+  longitude: number;
+  timezoneOffset: number;
+  ianaTimeZone?: string;
+  locationSource?: 'local' | 'internet' | 'manual';
+  locationStatus?: BirthData['locationStatus'];
+  timestamp: number;
+}
+
+const RECENT_STORAGE_KEY = 'anthro_recent_queries';
+
+const DEFAULT_SEEDS: RecentQuery[] = [
+  {
+    id: 'seed-steiner',
+    name: 'Rudolf Steiner',
+    birthDate: '1861-02-27',
+    birthTime: '23:15',
+    placeName: 'Donji Kraljevec, Croatia',
+    latitude: 43.367,
+    longitude: 16.65,
+    timezoneOffset: 1.11,
+    locationSource: 'local',
+    locationStatus: 'verified',
+    timestamp: 1672531199000,
+  },
+  {
+    id: 'seed-jung',
+    name: 'Carl Gustav Jung',
+    birthDate: '1875-07-26',
+    birthTime: '19:32',
+    placeName: 'Kesswil, Switzerland',
+    latitude: 47.6,
+    longitude: 9.32,
+    timezoneOffset: 1.0,
+    locationSource: 'local',
+    locationStatus: 'verified',
+    timestamp: 1672531198000,
+  },
+  {
+    id: 'seed-einstein',
+    name: 'Albert Einstein',
+    birthDate: '1879-03-14',
+    birthTime: '11:30',
+    placeName: 'Ulm, Germany',
+    latitude: 48.4,
+    longitude: 9.99,
+    timezoneOffset: 1.0,
+    locationSource: 'local',
+    locationStatus: 'verified',
+    timestamp: 1672531197000,
+  },
+];
 
 interface BirthDataFormProps {
   initialData: BirthData;
   onCalculate: (data: BirthData) => void;
   isLoading?: boolean;
 }
+
+// Helper to parse date parts (YYYY-MM-DD)
+const parseDateParts = (dateStr: string) => {
+  const parts = (dateStr || '').split('-');
+  if (parts.length === 3) {
+    return { year: parts[0], month: parts[1], day: parts[2] };
+  }
+  return { year: '1990', month: '01', day: '01' };
+};
+
+// Helper to parse time parts (HH:MM)
+const parseTimeParts = (timeStr: string) => {
+  const parts = (timeStr || '').split(':');
+  if (parts.length >= 2) {
+    return { hour: parts[0], minute: parts[1] };
+  }
+  return { hour: '12', minute: '00' };
+};
 
 export const BirthDataForm: React.FC<BirthDataFormProps> = ({
   initialData,
@@ -40,6 +121,137 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
   }));
   const [showCoordinates, setShowCoordinates] = useState(false);
   const [citySearch, setCitySearch] = useState('');
+
+  // Segmented date state for reliable instant mobile keyboard input
+  const initialDateParts = parseDateParts(initialData.birthDate);
+  const initialTimeParts = parseTimeParts(initialData.birthTime);
+
+  const [birthDay, setBirthDay] = useState(initialDateParts.day);
+  const [birthMonth, setBirthMonth] = useState(initialDateParts.month);
+  const [birthYear, setBirthYear] = useState(initialDateParts.year);
+
+  const [birthHour, setBirthHour] = useState(initialTimeParts.hour);
+  const [birthMinute, setBirthMinute] = useState(initialTimeParts.minute);
+
+  // Input refs for automatic auto-focus advance
+  const monthInputRef = useRef<HTMLInputElement>(null);
+  const yearInputRef = useRef<HTMLInputElement>(null);
+  const minuteInputRef = useRef<HTMLInputElement>(null);
+  const nativeDateInputRef = useRef<HTMLInputElement>(null);
+  const nativeTimeInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync date parts with formData and recalculate timezone offset
+  const syncBirthDate = (yStr: string, mStr: string, dStr: string) => {
+    const y = parseInt(yStr, 10);
+    const m = parseInt(mStr, 10);
+    const d = parseInt(dStr, 10);
+
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y >= 1 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const formattedDate = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      let newOffset = formData.timezoneOffset;
+      if (activeIanaTimeZone && formData.locationSource !== 'manual') {
+        newOffset = calculateHistoricalTimezoneOffset(
+          activeIanaTimeZone,
+          formattedDate,
+          formData.birthTime,
+          formData.timezoneOffset
+        );
+      }
+      setFormData((prev) => ({
+        ...prev,
+        birthDate: formattedDate,
+        timezoneOffset: newOffset,
+        ianaTimeZone: activeIanaTimeZone,
+      }));
+    }
+  };
+
+  const handleDayChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 2);
+    setBirthDay(clean);
+    syncBirthDate(birthYear, birthMonth, clean);
+    if (clean.length === 2 && monthInputRef.current) {
+      monthInputRef.current.focus();
+    }
+  };
+
+  const handleMonthChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 2);
+    setBirthMonth(clean);
+    syncBirthDate(birthYear, clean, birthDay);
+    if (clean.length === 2 && yearInputRef.current) {
+      yearInputRef.current.focus();
+    }
+  };
+
+  const handleYearChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 4);
+    setBirthYear(clean);
+    syncBirthDate(clean, birthMonth, birthDay);
+  };
+
+  // Sync time parts with formData and recalculate timezone offset
+  const syncBirthTime = (hStr: string, minStr: string) => {
+    const h = parseInt(hStr, 10);
+    const min = parseInt(minStr, 10);
+
+    if (!isNaN(h) && !isNaN(min) && h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+      const formattedTime = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      let newOffset = formData.timezoneOffset;
+      if (activeIanaTimeZone && formData.locationSource !== 'manual') {
+        newOffset = calculateHistoricalTimezoneOffset(
+          activeIanaTimeZone,
+          formData.birthDate,
+          formattedTime,
+          formData.timezoneOffset
+        );
+      }
+      setFormData((prev) => ({
+        ...prev,
+        birthTime: formattedTime,
+        timezoneOffset: newOffset,
+        ianaTimeZone: activeIanaTimeZone,
+      }));
+    }
+  };
+
+  const handleHourChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 2);
+    setBirthHour(clean);
+    syncBirthTime(clean, birthMinute);
+    if (clean.length === 2 && minuteInputRef.current) {
+      minuteInputRef.current.focus();
+    }
+  };
+
+  const handleMinuteChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 2);
+    setBirthMinute(clean);
+    syncBirthTime(birthHour, clean);
+  };
+
+  const handleQuickTimeSelect = (hourStr: string, minStr: string) => {
+    setBirthHour(hourStr);
+    setBirthMinute(minStr);
+    syncBirthTime(hourStr, minStr);
+  };
+
+  const handleNativeDateChange = (dateVal: string) => {
+    if (!dateVal) return;
+    const { year, month, day } = parseDateParts(dateVal);
+    setBirthDay(day);
+    setBirthMonth(month);
+    setBirthYear(year);
+    syncBirthDate(year, month, day);
+  };
+
+  const handleNativeTimeChange = (timeVal: string) => {
+    if (!timeVal) return;
+    const { hour, minute } = parseTimeParts(timeVal);
+    setBirthHour(hour);
+    setBirthMinute(minute);
+    syncBirthTime(hour, minute);
+  };
 
   // Location resolution states
   const [isSearchingOnline, setIsSearchingOnline] = useState(false);
@@ -62,6 +274,118 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Recent queries history from localStorage
+  const [recentQueries, setRecentQueries] = useState<RecentQuery[]>(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading recent queries:', e);
+    }
+    return DEFAULT_SEEDS;
+  });
+
+  const saveToRecentQueries = (data: BirthData) => {
+    if (!data.name || !data.name.trim()) return;
+
+    setRecentQueries((prev) => {
+      const trimmedName = data.name.trim().toLowerCase();
+      const filtered = prev.filter(
+        (q) =>
+          !(
+            q.name.trim().toLowerCase() === trimmedName &&
+            q.birthDate === data.birthDate
+          )
+      );
+
+      const newItem: RecentQuery = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        name: data.name.trim(),
+        birthDate: data.birthDate,
+        birthTime: data.birthTime,
+        placeName: data.placeName,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timezoneOffset: data.timezoneOffset,
+        ianaTimeZone: data.ianaTimeZone,
+        locationSource: data.locationSource,
+        locationStatus: data.locationStatus,
+        timestamp: Date.now(),
+      };
+
+      const updated = [newItem, ...filtered].slice(0, 12);
+      try {
+        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Could not save recent query:', err);
+      }
+      return updated;
+    });
+  };
+
+  const handleSelectRecent = (item: RecentQuery) => {
+    const updated: BirthData = {
+      name: item.name,
+      birthDate: item.birthDate,
+      birthTime: item.birthTime,
+      placeName: item.placeName,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      timezoneOffset: item.timezoneOffset,
+      ianaTimeZone: item.ianaTimeZone,
+      locationSource: item.locationSource || 'local',
+      locationStatus: 'verified',
+    };
+
+    setFormData(updated);
+
+    const partsDate = parseDateParts(item.birthDate);
+    setBirthDay(partsDate.day);
+    setBirthMonth(partsDate.month);
+    setBirthYear(partsDate.year);
+
+    const partsTime = parseTimeParts(item.birthTime);
+    setBirthHour(partsTime.hour);
+    setBirthMinute(partsTime.minute);
+
+    setLocationSource(item.locationSource || 'local');
+    setLocationError(null);
+    setLocationNotice({
+      type: item.locationSource === 'internet' ? 'internet' : 'local',
+      text: `Consulta cargada: ${item.name}`,
+      details: `${item.placeName} (Lat: ${item.latitude.toFixed(2)}°, Lon: ${item.longitude.toFixed(2)}°, UTC ${item.timezoneOffset >= 0 ? '+' : ''}${item.timezoneOffset}h)`,
+    });
+
+    saveToRecentQueries(updated);
+    onCalculate(updated);
+  };
+
+  const handleDeleteRecent = (id: string) => {
+    setRecentQueries((prev) => {
+      const updated = prev.filter((q) => q.id !== id);
+      try {
+        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Error saving updated recents:', e);
+      }
+      return updated;
+    });
+  };
+
+  const handleClearRecent = () => {
+    setRecentQueries([]);
+    try {
+      localStorage.removeItem(RECENT_STORAGE_KEY);
+    } catch (e) {
+      console.warn('Error clearing recent queries:', e);
+    }
+  };
+
   // Synchronize when initialData changes from external presets (e.g. example buttons)
   useEffect(() => {
     setFormData({
@@ -69,6 +393,16 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
       locationSource: 'local',
       locationStatus: 'verified',
     });
+
+    const partsDate = parseDateParts(initialData.birthDate);
+    setBirthDay(partsDate.day);
+    setBirthMonth(partsDate.month);
+    setBirthYear(partsDate.year);
+
+    const partsTime = parseTimeParts(initialData.birthTime);
+    setBirthHour(partsTime.hour);
+    setBirthMinute(partsTime.minute);
+
     setLocationSource('local');
     setLocationError(null);
     setLocationNotice({
@@ -303,10 +637,12 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
         });
       }
 
+      saveToRecentQueries(finalData);
       onCalculate(finalData);
       return;
     }
 
+    saveToRecentQueries(formData);
     onCalculate(formData);
   };
 
@@ -314,7 +650,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
     <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
       <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="mb-6">
+      <div className="mb-5">
         <h2 className="font-serif text-xl sm:text-2xl font-semibold text-stone-100 flex items-center gap-2.5">
           <Sparkles className="w-5 h-5 text-amber-400" />
           Ingreso de Datos de Nacimiento
@@ -323,6 +659,94 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
           La fecha, hora exacta y coordenadas geográficas verificadas garantizan el cálculo astronómico exacto de tu Ascendente, casas Plácidus, eje nodal y septenio antroposófico.
         </p>
       </div>
+
+      {/* Consultas Recientes */}
+      {recentQueries.length > 0 && (
+        <div className="mb-6 p-3.5 bg-stone-950/80 border border-stone-800/90 rounded-xl space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
+                Consultas Recientes
+              </span>
+              <span className="text-[11px] text-stone-500 hidden sm:inline">
+                • Haz clic en una persona para cargar y calcular su carta al instante
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearRecent}
+              className="text-[11px] text-stone-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Limpiar lista de consultas recientes"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span className="hidden sm:inline">Limpiar historial</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-stone-800">
+            {recentQueries.map((item) => {
+              const isActive =
+                formData.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
+                formData.birthDate === item.birthDate;
+
+              return (
+                <div
+                  key={item.id}
+                  className={`group relative shrink-0 flex items-center rounded-xl border text-xs transition-all ${
+                    isActive
+                      ? 'bg-amber-500/15 border-amber-500/50 text-amber-200 shadow-sm ring-1 ring-amber-500/30'
+                      : 'bg-stone-900/90 hover:bg-stone-850 border-stone-800/90 text-stone-300 hover:border-stone-700 hover:text-stone-100'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRecent(item)}
+                    className="pl-3 pr-2 py-2 flex items-center gap-2.5 text-left cursor-pointer"
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                        isActive
+                          ? 'bg-amber-500 text-stone-950'
+                          : 'bg-stone-800 text-stone-400 group-hover:text-amber-300'
+                      }`}
+                    >
+                      {item.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium flex items-center gap-1.5">
+                        <span className="truncate max-w-[130px] sm:max-w-[160px] font-semibold text-stone-200 group-hover:text-amber-200">
+                          {item.name}
+                        </span>
+                        {isActive && (
+                          <span className="text-[10px] px-1.5 py-0.2 bg-amber-500/30 text-amber-200 rounded font-normal">
+                            Activo
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-stone-400 truncate max-w-[170px]">
+                        {item.birthDate} • {item.placeName.split(',')[0]}
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteRecent(item.id);
+                    }}
+                    className="p-1.5 mr-1 text-stone-500 hover:text-rose-400 opacity-60 hover:opacity-100 transition-opacity rounded cursor-pointer"
+                    title="Eliminar de recientes"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -347,71 +771,205 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
             </div>
           </div>
 
-          {/* Fecha de Nacimiento */}
+          {/* Fecha de Nacimiento con entrada numérica directa para celular */}
           <div className="space-y-1.5">
-            <label htmlFor="input-birthdate" className="block text-xs font-semibold uppercase tracking-wider text-stone-300">
-              Fecha de Nacimiento
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-500">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <input
-                id="input-birthdate"
-                type="date"
-                required
-                value={formData.birthDate}
-                onChange={(e) => {
-                  const newDate = e.target.value;
-                  let newOffset = formData.timezoneOffset;
-                  if (activeIanaTimeZone && formData.locationSource !== 'manual') {
-                    newOffset = calculateHistoricalTimezoneOffset(
-                      activeIanaTimeZone,
-                      newDate,
-                      formData.birthTime,
-                      formData.timezoneOffset
-                    );
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-300">
+                Fecha de Nacimiento
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    nativeDateInputRef.current?.showPicker?.();
+                  } catch (e) {
+                    nativeDateInputRef.current?.focus();
                   }
-                  setFormData({ ...formData, birthDate: newDate, timezoneOffset: newOffset, ianaTimeZone: activeIanaTimeZone });
                 }}
-                className="w-full pl-10 pr-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 text-sm transition-all"
-              />
+                className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Abrir selector de calendario del sistema"
+              >
+                <Calendar className="w-3 h-3" />
+                <span>Calendario</span>
+              </button>
             </div>
-          </div>
 
-          {/* Hora Exacta de Nacimiento */}
-          <div className="space-y-1.5">
-            <label htmlFor="input-birthtime" className="block text-xs font-semibold uppercase tracking-wider text-stone-300">
-              Hora Exacta (24h)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-500">
-                <Clock className="w-4 h-4" />
+            {/* Segmented inputs: DD / MM / AAAA */}
+            <div className="flex items-center gap-1.5 bg-stone-950 border border-stone-800 rounded-xl p-1.5 focus-within:border-amber-500/60 focus-within:ring-1 focus-within:ring-amber-500/60 transition-all">
+              <div className="pl-1.5 text-stone-500 shrink-0">
+                <Calendar className="w-4 h-4 text-amber-400" />
               </div>
+
+              {/* Día */}
+              <div className="relative flex-1 min-w-0">
+                <input
+                  id="input-birth-day"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  value={birthDay}
+                  onChange={(e) => handleDayChange(e.target.value)}
+                  placeholder="DD"
+                  className="w-full text-center py-1.5 bg-stone-900/80 border border-stone-700/60 rounded-lg text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 focus:bg-stone-900 text-sm font-mono"
+                  title="Día de nacimiento (01-31)"
+                />
+                <span className="text-[9px] text-stone-500 block text-center mt-0.5">Día</span>
+              </div>
+
+              <span className="text-stone-600 font-bold text-sm">/</span>
+
+              {/* Mes */}
+              <div className="relative flex-1 min-w-0">
+                <input
+                  ref={monthInputRef}
+                  id="input-birth-month"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  value={birthMonth}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  placeholder="MM"
+                  className="w-full text-center py-1.5 bg-stone-900/80 border border-stone-700/60 rounded-lg text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 focus:bg-stone-900 text-sm font-mono"
+                  title="Mes de nacimiento (01-12)"
+                />
+                <span className="text-[9px] text-stone-500 block text-center mt-0.5">Mes</span>
+              </div>
+
+              <span className="text-stone-600 font-bold text-sm">/</span>
+
+              {/* Año */}
+              <div className="relative flex-[1.4] min-w-0">
+                <input
+                  ref={yearInputRef}
+                  id="input-birth-year"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={birthYear}
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  placeholder="AAAA"
+                  className="w-full text-center py-1.5 bg-stone-900/80 border border-stone-700/60 rounded-lg text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 focus:bg-stone-900 text-sm font-mono"
+                  title="Año de nacimiento de 4 dígitos (ej. 1985 o 1861)"
+                />
+                <span className="text-[9px] text-stone-500 block text-center mt-0.5">Año</span>
+              </div>
+
+              {/* Hidden native date input */}
               <input
-                id="input-birthtime"
-                type="time"
-                required
-                value={formData.birthTime}
-                onChange={(e) => {
-                  const newTime = e.target.value;
-                  let newOffset = formData.timezoneOffset;
-                  if (activeIanaTimeZone && formData.locationSource !== 'manual') {
-                    newOffset = calculateHistoricalTimezoneOffset(
-                      activeIanaTimeZone,
-                      formData.birthDate,
-                      newTime,
-                      formData.timezoneOffset
-                    );
-                  }
-                  setFormData({ ...formData, birthTime: newTime, timezoneOffset: newOffset, ianaTimeZone: activeIanaTimeZone });
-                }}
-                className="w-full pl-10 pr-3.5 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 text-sm transition-all"
+                ref={nativeDateInputRef}
+                type="date"
+                tabIndex={-1}
+                aria-hidden="true"
+                value={formData.birthDate}
+                onChange={(e) => handleNativeDateChange(e.target.value)}
+                className="sr-only"
               />
             </div>
             <p className="text-[11px] text-stone-500">
-              La hora exacta determina el Ascendente y la distribución de las 12 casas Plácidus.
+              Escribe directamente con el teclado numérico de tu celular.
             </p>
+          </div>
+
+          {/* Hora Exacta de Nacimiento con entrada numérica directa */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-300">
+                Hora Exacta (24h)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    nativeTimeInputRef.current?.showPicker?.();
+                  } catch (e) {
+                    nativeTimeInputRef.current?.focus();
+                  }
+                }}
+                className="text-[11px] text-amber-400/90 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Abrir selector de reloj del sistema"
+              >
+                <Clock className="w-3 h-3" />
+                <span>Reloj</span>
+              </button>
+            </div>
+
+            {/* Segmented inputs: HH : MM */}
+            <div className="flex items-center gap-1.5 bg-stone-950 border border-stone-800 rounded-xl p-1.5 focus-within:border-amber-500/60 focus-within:ring-1 focus-within:ring-amber-500/60 transition-all">
+              <div className="pl-1.5 text-stone-500 shrink-0">
+                <Clock className="w-4 h-4 text-amber-400" />
+              </div>
+
+              {/* Hora */}
+              <div className="relative flex-1 min-w-0">
+                <input
+                  id="input-birth-hour"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  value={birthHour}
+                  onChange={(e) => handleHourChange(e.target.value)}
+                  placeholder="HH"
+                  className="w-full text-center py-1.5 bg-stone-900/80 border border-stone-700/60 rounded-lg text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 focus:bg-stone-900 text-sm font-mono"
+                  title="Hora (00 a 23)"
+                />
+                <span className="text-[9px] text-stone-500 block text-center mt-0.5">Hora (00-23)</span>
+              </div>
+
+              <span className="text-stone-600 font-bold text-sm">:</span>
+
+              {/* Minuto */}
+              <div className="relative flex-1 min-w-0">
+                <input
+                  ref={minuteInputRef}
+                  id="input-birth-minute"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={2}
+                  value={birthMinute}
+                  onChange={(e) => handleMinuteChange(e.target.value)}
+                  placeholder="MM"
+                  className="w-full text-center py-1.5 bg-stone-900/80 border border-stone-700/60 rounded-lg text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 focus:bg-stone-900 text-sm font-mono"
+                  title="Minuto (00 a 59)"
+                />
+                <span className="text-[9px] text-stone-500 block text-center mt-0.5">Min (00-59)</span>
+              </div>
+
+              {/* Hidden native time input */}
+              <input
+                ref={nativeTimeInputRef}
+                type="time"
+                tabIndex={-1}
+                aria-hidden="true"
+                value={formData.birthTime}
+                onChange={(e) => handleNativeTimeChange(e.target.value)}
+                className="sr-only"
+              />
+            </div>
+
+            {/* Quick Time Presets */}
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              <span className="text-[10px] text-stone-500">Rápido:</span>
+              {[
+                { label: '12:00 (Mediodía)', h: '12', m: '00' },
+                { label: '06:00', h: '06', m: '00' },
+                { label: '18:00', h: '18', m: '00' },
+                { label: '00:00', h: '00', m: '00' },
+              ].map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => handleQuickTimeSelect(p.h, p.m)}
+                  className="text-[10px] px-2 py-0.5 bg-stone-850 hover:bg-stone-800 text-stone-300 hover:text-amber-300 rounded border border-stone-800 transition-colors cursor-pointer"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
