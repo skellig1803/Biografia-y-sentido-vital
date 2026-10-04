@@ -3,6 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { computeSwissEphemerisChart } from './server/swissEphemeris';
+import { generateGuaranteedCompleteSynthesis } from './server/comprehensiveSynthesisFallback';
 
 dotenv.config();
 
@@ -11,7 +12,7 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '5mb' }));
 
-// Lazy GoogleGenAI client
+// Lazy GoogleGenAI client with standard telemetry User-Agent
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -19,7 +20,14 @@ function getGeminiClient(): GoogleGenAI | null {
     return null;
   }
   if (!geminiClient) {
-    geminiClient = new GoogleGenAI({ apiKey });
+    geminiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
   }
   return geminiClient;
 }
@@ -152,6 +160,37 @@ app.post('/api/astrology/calculate', (req, res) => {
   }
 });
 
+// Helper to validate that a generated reading is genuinely complete and not truncated
+function isReadingComplete(text: string, finishReason?: string): { complete: boolean; reason?: string } {
+  if (!text || typeof text !== 'string') {
+    return { complete: false, reason: 'Texto vacío' };
+  }
+  const clean = text.trim();
+  if (clean.length < 1200) {
+    return { complete: false, reason: `Longitud insuficiente (${clean.length} caracteres)` };
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    return { complete: false, reason: 'El modelo alcanzó el límite máximo de tokens (MAX_TOKENS)' };
+  }
+
+  const hasSec1 = clean.includes('1.') || clean.includes('Esencia Biográfica');
+  const hasSec2 = clean.includes('2.') || clean.includes('Brújula');
+  const hasSec3 = clean.includes('3.') || clean.includes('Clima Vital');
+  const hasSec4 = clean.includes('4.') || clean.includes('Alquimia');
+
+  if (!hasSec1 || !hasSec2 || !hasSec3 || !hasSec4) {
+    return { complete: false, reason: 'Falta alguna de las 4 secciones estructurales' };
+  }
+
+  // Ensure section 4 has substantial content and does not cut off immediately
+  const idx4 = Math.max(clean.lastIndexOf('## 4.'), clean.lastIndexOf('4. Alquimia'));
+  if (idx4 !== -1 && clean.slice(idx4).length < 250) {
+    return { complete: false, reason: 'La sección 4 quedó inconclusa' };
+  }
+
+  return { complete: true };
+}
+
 // Gemini Synthesis Endpoint for Anthroposophic Biography & Astrological Transit Reading
 app.post('/api/synthesis', async (req, res) => {
   try {
@@ -176,16 +215,7 @@ app.post('/api/synthesis', async (req, res) => {
       regenerationCount,
     } = req.body;
 
-    const ai = getGeminiClient();
-    if (!ai) {
-      return res.status(200).json({
-        success: false,
-        fallbackReason: 'NO_API_KEY',
-        message: 'No se ha configurado GEMINI_API_KEY. Se utilizará la síntesis astrológica y antroposófica integrada.',
-      });
-    }
-
-    // Concise representation of astrological markers to minimize input tokens
+    // Concise representation of astrological markers
     const septenioStr =
       septenioCode ||
       (currentSeptenio
@@ -219,14 +249,38 @@ app.post('/api/synthesis', async (req, res) => {
         ? activeTransits.slice(0, 5).map((t: any) => `Tr-${t.transitPlanet?.name || t.name} -> Nat-${t.natalPlanet?.name || ''} (${(t.orb ?? 0).toFixed?.(1) || 0}°)`).join('; ')
         : 'Tránsitos activos del cielo';
 
+    const fallbackData = {
+      name,
+      exactAgeFormatted,
+      sunSign,
+      moonSign,
+      ascendantSign,
+      septenioCode: septenioStr,
+      nodalAxisCode: nodesStr,
+      profectionCode: profectionStr,
+      natalAspectCodes: Array.isArray(natalAspectCodes) ? natalAspectCodes : undefined,
+      transitCodes: Array.isArray(transitCodes) ? transitCodes : undefined,
+    };
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      console.info('No GEMINI_API_KEY detected, using guaranteed complete synthesis.');
+      return res.status(200).json({
+        success: true,
+        reading: generateGuaranteedCompleteSynthesis(fallbackData),
+        source: 'structured_synthesis',
+      });
+    }
+
     const regenNote = isRegeneration
       ? `\nREGENERACIÓN (Perspectiva #${regenerationCount || 2}): Aporta un prisma interpretativo renovado, fresco y complementario. Indaga en matices anímicos inéditos, polaridades de sombra a integrar, vocación profunda y prácticas vitales concretas según Steiner y Lievegoed.`
       : '';
 
-    // Condensed system instruction: ~50 tokens
-    const systemInstruction = `Eres un sabio biógrafo antroposófico (Steiner/Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales y transformadores. Evita lugares comunes o clichés. Escribe en Markdown impecable con subtítulos ##, negritas precisas y listas claras.`;
+    // Condensed system instruction with strict integrity rule
+    const systemInstruction = `Eres un sabio biógrafo antroposófico (siguiendo las enseñanzas de Rudolf Steiner y Bernard Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales, cálidos y transformadores.
+REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exhaustiva cada una de las 4 secciones solicitadas sin dejar ideas truncadas ni oraciones a medias. Cada sección debe tener un desarrollo fluido y una conclusión clara en Markdown bien estructurado (títulos ##, párrafos articulados, negritas para conceptos esenciales).`;
 
-    // Condensed user prompt: ~120-150 tokens
+    // Condensed user prompt
     const prompt = `Consultante: ${name || 'Consultante'} (${exactAgeFormatted || 'Edad actual'}).
 Luminarias/ASC: Sol en ${sunSign || 'N/A'}, Luna en ${moonSign || 'N/A'}, Ascendente en ${ascendantSign || 'N/A'}.
 Septenio: ${septenioStr}.
@@ -235,16 +289,16 @@ Profección anual: ${profectionStr}.
 Aspectos natales clave: ${aspectsStr}.
 Tránsitos celestes activos: ${transitsStr}.${regenNote}
 
-Escribe una guía biográfica lúcida y personalizada estructurada en estas 4 secciones en Markdown:
+Escribe una guía biográfica completa y de alta calidad abarcando obligatoriamente estas 4 secciones numeradas de principio a fin, cerrando la sección 4 con una síntesis práctica para la vida cotidiana:
 ## 1. La Esencia Biográfica y el Reto del Septenio Presente
 ## 2. La Brújula del Alma: El Eje de los Nodos Lunares
 ## 3. El Clima Vital del Año de Vida Actual
 ## 4. Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente`;
 
-    // Resilient generation with fallback across primary and fast model
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    // Resilient generation with fallback models and high token budget to prevent truncations
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-flash-latest'];
     let readingText = '';
-    let lastError: any = null;
+    let lastFailureReason = '';
 
     for (const modelName of modelsToTry) {
       try {
@@ -253,23 +307,32 @@ Escribe una guía biográfica lúcida y personalizada estructurada en estas 4 se
           contents: prompt,
           config: {
             systemInstruction,
-            temperature: isRegeneration ? 0.88 : 0.72,
-            maxOutputTokens: 1200,
+            temperature: isRegeneration ? 0.85 : 0.72,
+            maxOutputTokens: 8192, // Generous limit to accommodate internal thoughts + full 4-section synthesis
           },
         });
 
-        if (response.text && response.text.trim().length > 0) {
-          readingText = response.text;
+        const text = response.text || '';
+        const finishReason = response.candidates?.[0]?.finishReason;
+        const validation = isReadingComplete(text, finishReason);
+
+        if (validation.complete) {
+          readingText = text.trim();
           break;
+        } else {
+          console.warn(`Model ${modelName} output incomplete (${validation.reason}). Retrying with next model.`);
+          lastFailureReason = validation.reason || 'Salida incompleta';
         }
       } catch (err: any) {
         console.warn(`Attempt with ${modelName} encountered error:`, err?.message || err);
-        lastError = err;
+        lastFailureReason = err?.message || 'Error de API';
       }
     }
 
+    // If AI calls failed or returned incomplete output, deliver guaranteed full synthesis
     if (!readingText) {
-      throw lastError || new Error('No se pudo generar la lectura con los modelos de IA disponibles.');
+      console.warn(`All AI model generations failed or were incomplete (${lastFailureReason}). Providing guaranteed synthesis fallback.`);
+      readingText = generateGuaranteedCompleteSynthesis(fallbackData);
     }
 
     return res.json({

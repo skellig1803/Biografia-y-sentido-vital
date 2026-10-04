@@ -40,7 +40,7 @@ type ActiveTab = 'overview' | 'septenio' | 'lunarNodes' | 'yearOfLife' | 'transi
 
 export default function App() {
   const [birthData, setBirthData] = useState<BirthData>(DEFAULT_BIRTH_DATA);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('septenio');
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSwissPrecision, setIsSwissPrecision] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(() => getCreditBalance());
@@ -93,12 +93,12 @@ export default function App() {
   const midheavenPlanet = calculationResult.planets.find((p) => p.id === 'midheaven');
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { id: 'overview', label: 'Planetas & Casas', icon: <TableProperties className="w-4 h-4" /> },
     { id: 'septenio', label: 'Septenio Biográfico', icon: <Clock className="w-4 h-4" />, badge: `S${calculationResult.currentSeptenio.number}` },
     { id: 'lunarNodes', label: 'Nodo Lunar & Dirección', icon: <Compass className="w-4 h-4" />, badge: calculationResult.lunarNodes.northNode.sign },
     { id: 'yearOfLife', label: 'Año de Vida', icon: <SunMedium className="w-4 h-4" />, badge: `Año ${calculationResult.yearOfLife.currentYearOfLife}` },
     { id: 'transits', label: 'Tránsitos Planetarios', icon: <Sparkles className="w-4 h-4" />, badge: `${calculationResult.currentTransits.activeTransits.length}` },
     { id: 'synthesis', label: 'Lectura Integral', icon: <BookOpen className="w-4 h-4" />, badge: 'IA' },
+    { id: 'overview', label: 'Planetas & Casas', icon: <TableProperties className="w-4 h-4" /> },
   ];
 
   return (
@@ -120,36 +120,57 @@ export default function App() {
         {/* Resumen Superior de Métricas */}
         <KeyMetricsBar calculation={calculationResult} />
 
-        {/* Barra de Navegación de Pestañas */}
-        <div className="border-b border-stone-800 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                id={`tab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900'
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
-                      isActive ? 'bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-400'
+        {/* Barra de Navegación de Pestañas - Notoria y Ergonómica */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              Secciones del Análisis
+            </span>
+            <span className="text-[11px] text-stone-400 flex items-center gap-1">
+              <span className="hidden sm:inline">Haz clic para cambiar de módulo</span>
+              <span className="sm:hidden text-amber-400/80 font-medium">Desliza para ver más →</span>
+            </span>
+          </div>
+
+          <div className="relative bg-stone-900/90 border border-stone-800 rounded-2xl p-2 shadow-xl backdrop-blur-sm">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 px-0.5 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    id={`tab-${tab.id}`}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`group flex items-center gap-2.5 px-4 py-2.5 sm:px-4.5 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-bold border-2 border-amber-300 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/30 scale-[1.02]'
+                        : 'bg-stone-950/90 text-stone-300 border border-stone-700/80 hover:border-amber-400/70 hover:bg-stone-850 hover:text-white shadow-sm'
                     }`}
                   >
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                    <span className={isActive ? 'text-stone-950 stroke-[2.5]' : 'text-amber-400/90 group-hover:text-amber-300'}>
+                      {tab.icon}
+                    </span>
+                    <span className={isActive ? 'text-stone-950 font-bold' : 'text-stone-200 group-hover:text-white'}>
+                      {tab.label}
+                    </span>
+                    {tab.badge && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                          isActive
+                            ? 'bg-stone-950 text-amber-300 border border-amber-400/50 shadow-sm'
+                            : 'bg-stone-850 text-amber-300/90 border border-stone-700 group-hover:border-amber-500/50'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Tab Content Display */}

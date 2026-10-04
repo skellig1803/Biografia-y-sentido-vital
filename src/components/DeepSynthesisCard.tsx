@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NatalChartCalculationResult } from '../types';
 import {
   Sparkles,
-  BookOpen,
   Copy,
   Check,
   Printer,
@@ -11,6 +10,8 @@ import {
   AlertCircle,
   PlusCircle,
   RotateCcw,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 import { getCreditBalance, consumeCredit } from '../utils/creditManager';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -24,13 +25,38 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
   calculation,
   onOpenCreditsModal,
 }) => {
-  const [aiReading, setAiReading] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'ai' | 'essential'>('essential');
+  const cacheKey = `faro_reading_${calculation.birthData.name}_${calculation.birthData.birthDate}_${calculation.birthData.birthTime}`;
+
+  // Initialize aiReading from session cache if already unlocked for this calculation
+  const [aiReading, setAiReading] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(cacheKey) || null;
+    } catch {
+      return null;
+    }
+  });
+
   const [regenerationCount, setRegenerationCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showNoCreditNotice, setShowNoCreditNotice] = useState(false);
+
+  // Sync cache if calculation changes
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        setAiReading(cached);
+      } else {
+        setAiReading(null);
+      }
+    } catch {
+      setAiReading(null);
+    }
+    setErrorMsg(null);
+    setShowNoCreditNotice(false);
+  }, [cacheKey]);
 
   const sun = calculation.planets.find((p) => p.id === 'sun');
   const moon = calculation.planets.find((p) => p.id === 'moon');
@@ -38,39 +64,11 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
 
   const currentBalance = getCreditBalance();
 
-  const generateDefaultSynthesis = () => {
-    return `## 1. La Esencia Biográfica y el Reto del Septenio Presente
-Te encuentras transitando el **${calculation.currentSeptenio.number}° Septenio (${calculation.currentSeptenio.ageRange})**, titulado *"**${calculation.currentSeptenio.archetypalTitle}**"*, perteneciente a la fase de **${calculation.currentSeptenio.phase}** y gobernado por la esfera de **${calculation.currentSeptenio.planetarySphere}**. 
-
-Con **${calculation.exactAge.formatted}**, tu ser interior confronta la pregunta arquetípica: *"${calculation.currentSeptenio.coreQuestion}"*. A esta edad precisa, el organismo ya no sostiene automáticamente las fuerzas juveniles sin esfuerzo consciente; la antroposofía enseña que la verdadera individualidad del Yo debe tomar el timón de la existencia. Tu principal desafío consiste en soltar las máscaras y mandatos sociales que ya no te pertenecen para cultivar una autenticidad radical.
-
----
-
-## 2. La Brújula del Alma: El Eje de los Nodos Lunares
-Tu **Nodo Norte en ${calculation.lunarNodes.northNode.sign} (Casa ${calculation.lunarNodes.northNode.house})** marca con nitidez la brújula evolutiva de tu encarnación:
-- **La Dirección a Tomar:** ${calculation.lunarNodes.northNode.dharmaDirection}
-- **La Lección del Alma:** ${calculation.lunarNodes.northNode.soulLesson}
-- **La Trampa a Trascender:** Con tu **Nodo Sur en ${calculation.lunarNodes.southNode.sign} (Casa ${calculation.lunarNodes.southNode.house})**, tiendes a refugiarte inconscientemente en: *${calculation.lunarNodes.southNode.comfortZoneTrap}*. Aunque posees dones innatos en este signo, usarlos como refugio estanca tu crecimiento. El cosmos te exige avanzar con coraje hacia la energía de ${calculation.lunarNodes.northNode.sign}.
-
----
-
-## 3. El Clima Vital del Año de Vida Actual
-Con ${calculation.yearOfLife.completedYears} años cumplidos, estás viviendo tu **año ${calculation.yearOfLife.currentYearOfLife} de vida**, el cual activa la **Casa ${calculation.yearOfLife.profectionHouse} astrológica en ${calculation.yearOfLife.profectionSign}**, regido este año por el planeta **${calculation.yearOfLife.lordOfYear}**.
-- **Tema Central Anual:** ${calculation.yearOfLife.annualCoreTheme}
-- **Directriz de Oro:** ${calculation.yearOfLife.keyDirectives[0]}
-
----
-
-## 4. Alquimia de los Tránsitos: Mensaje del Cielo
-El firmamento actual cuenta con tránsitos clave impactando tu carta natal. Destacan:
-${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.name}**: ${t.simpleExplanation || t.biographicalImpact}`).join('\n')}
-
-> **Consejo Integrador:** Abraza el ritmo sagrado de tu biografía. Las crisis no son desvíos en el camino, sino los dolores de parto de un Yo más despierto, libre y compasivo.`;
-  };
-
   const handleFetchAiReading = async () => {
+    const isFirstUnlock = !aiReading;
+
     // Check credit balance on first generation
-    if (!aiReading) {
+    if (isFirstUnlock) {
       const balance = getCreditBalance();
       if (balance < 1) {
         setShowNoCreditNotice(true);
@@ -79,7 +77,6 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
         }
         return;
       }
-      consumeCredit(`Lectura Biográfica con IA para ${calculation.birthData.name}`);
     }
 
     setShowNoCreditNotice(false);
@@ -137,21 +134,27 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
       });
 
       const data = await response.json();
-      if (data.success && data.reading) {
+      if (data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 500) {
+        if (isFirstUnlock) {
+          consumeCredit(`Lectura Integral para ${calculation.birthData.name}`);
+        }
         setAiReading(data.reading);
-        setViewMode('ai');
+        try {
+          sessionStorage.setItem(cacheKey, data.reading);
+        } catch {}
         setRegenerationCount((prev) => prev + 1);
         setErrorMsg(null);
       } else {
+        // If AI generation failed, inform that credits are safe and allow retry
         setErrorMsg(
           data.error ||
-            'No se pudo completar la síntesis con IA. Puedes consultar el Resumen Esencial abajo o volver a intentar.'
+            'La lectura no pudo completarse de manera íntegra en este intento. Tu crédito no fue descontado. Por favor, pulsa Reintentar.'
         );
       }
     } catch (err: any) {
       console.warn('AI endpoint error:', err);
       setErrorMsg(
-        'Hubo un problema de conexión al generar la lectura con IA. Puedes consultar el Resumen Esencial o reintentar en un momento.'
+        'Hubo un problema de conexión temporal al canalizar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.'
       );
     } finally {
       setIsLoading(false);
@@ -159,23 +162,16 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
   };
 
   const handleCopy = () => {
-    const textToCopy =
-      viewMode === 'ai' && aiReading
-        ? aiReading
-        : generateDefaultSynthesis();
-    navigator.clipboard.writeText(textToCopy);
+    if (!aiReading) return;
+    navigator.clipboard.writeText(aiReading);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handlePrint = () => {
+    if (!aiReading) return;
     window.print();
   };
-
-  const activeContent =
-    viewMode === 'ai' && aiReading
-      ? aiReading
-      : generateDefaultSynthesis();
 
   return (
     <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-6 shadow-xl space-y-5">
@@ -185,17 +181,17 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Lectura Integrativa Completa
+              Lectura Integral Antroposófica
             </span>
             {aiReading ? (
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <Check className="w-3 h-3" />
-                Síntesis IA Activa {regenerationCount > 1 ? `(Perspectiva #${regenerationCount})` : ''}
+                Lectura Desbloqueada {regenerationCount > 1 ? `(Perspectiva #${regenerationCount})` : ''}
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-950 text-stone-400 border border-stone-800 flex items-center gap-1">
-                <Coins className="w-3 h-3 text-amber-400" />
-                IA Opcional: Requiere 1 Crédito (Saldo: {currentBalance})
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-stone-800 text-stone-300 border border-stone-700 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-400" />
+                Bloqueado (1 Crédito)
               </span>
             )}
           </div>
@@ -207,69 +203,41 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {aiReading && (
-            <div className="flex items-center rounded-lg border border-stone-800 bg-stone-950 p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode('ai')}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  viewMode === 'ai'
-                    ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                Lectura IA
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('essential')}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  viewMode === 'essential'
-                    ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                <BookOpen className="w-3 h-3" />
-                Resumen Esencial
-              </button>
-            </div>
-          )}
+        {/* Action Controls in Header (Only active/available when reading is unlocked) */}
+        {aiReading && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              id="btn-copy-reading"
+              onClick={handleCopy}
+              className="px-3 py-1.5 rounded-lg border border-stone-700 bg-stone-950 text-xs text-stone-300 hover:text-amber-300 hover:border-stone-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? 'Copiado' : 'Copiar'}
+            </button>
 
-          <button
-            type="button"
-            id="btn-copy-reading"
-            onClick={handleCopy}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 bg-stone-950 text-xs text-stone-300 hover:text-amber-300 hover:border-stone-600 transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copiado' : 'Copiar'}
-          </button>
-          <button
-            type="button"
-            id="btn-print-reading"
-            onClick={handlePrint}
-            className="px-3 py-1.5 rounded-lg border border-stone-700 bg-stone-950 text-xs text-stone-300 hover:text-amber-300 hover:border-stone-600 transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Imprimir
-          </button>
-          <button
-            type="button"
-            id="btn-generate-ai"
-            disabled={isLoading}
-            onClick={handleFetchAiReading}
-            className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-semibold rounded-lg text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading
-              ? 'Sintetizando...'
-              : aiReading
-              ? 'Regenerar con IA (Nueva Perspectiva)'
-              : 'Profundizar con IA (1 Crédito)'}
-          </button>
-        </div>
+            <button
+              type="button"
+              id="btn-print-reading"
+              onClick={handlePrint}
+              className="px-3 py-1.5 rounded-lg border border-stone-700 bg-stone-950 text-xs text-stone-300 hover:text-amber-300 hover:border-stone-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Imprimir
+            </button>
+
+            <button
+              type="button"
+              id="btn-generate-ai"
+              disabled={isLoading}
+              onClick={handleFetchAiReading}
+              className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-semibold rounded-lg text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Sintetizando...' : 'Regenerar con IA (Nueva Perspectiva)'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error Notice */}
@@ -296,7 +264,7 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              Has agotado tus créditos para lecturas con IA. Puedes ver la síntesis esencial incluida abajo o recargar créditos para un informe biográfico ampliado.
+              Has agotado tus créditos para la lectura integral. Adquiere créditos para desbloquear este informe biográfico ampliado.
             </span>
           </div>
           {onOpenCreditsModal && (
@@ -312,32 +280,108 @@ ${calculation.currentTransits.activeTransits.slice(0, 4).map((t) => `- **${t.nam
         </div>
       )}
 
-      {/* Mode Indicator Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-stone-950/60 border border-stone-800/80 rounded-xl text-xs text-stone-400">
-        <div className="flex items-center gap-2">
-          {viewMode === 'ai' && aiReading ? (
-            <>
+      {/* ========================================================================= */}
+      {/* LOCKED STATE (When reading is not yet unlocked - text is NOT visible)     */}
+      {/* ========================================================================= */}
+      {!aiReading && (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-stone-900 via-stone-900/90 to-stone-950 p-6 sm:p-8 text-center shadow-2xl">
+          {/* Subtle gold glow */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 max-w-2xl mx-auto space-y-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/40 text-amber-400 shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-3">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                Lectura Integral Personalizada
+              </span>
+              <h3 className="font-serif text-2xl sm:text-3xl font-bold text-stone-100 tracking-wide">
+                Lectura Integral Antroposófica
+              </h3>
+              <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed">
+                Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y el clima astrológico de tránsitos en tiempo real.
+              </p>
+            </div>
+
+            {/* Action Trigger Area */}
+            <div className="pt-3 space-y-3">
+              {isLoading ? (
+                <div className="p-6 rounded-xl bg-stone-950 border border-amber-500/40 flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-semibold text-stone-100">
+                      Canalizando tu Lectura Integral con IA...
+                    </p>
+                    <p className="text-xs text-stone-400">
+                      Sintetizando septenios, carta natal y tránsitos en tiempo real para {calculation.birthData.name}.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    id="btn-unlock-reading"
+                    onClick={handleFetchAiReading}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-stone-950 font-bold rounded-xl text-sm shadow-xl shadow-amber-500/20 hover:shadow-amber-500/30 transition-all flex items-center justify-center gap-2.5 cursor-pointer transform hover:-translate-y-0.5"
+                  >
+                    <Sparkles className="w-4 h-4 text-stone-950" />
+                    <span>Acceder a la Lectura Integral (1 Crédito)</span>
+                  </button>
+
+                  {currentBalance < 1 && onOpenCreditsModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenCreditsModal}
+                      className="w-full sm:w-auto px-5 py-3.5 bg-stone-900 hover:bg-stone-800 text-amber-300 border border-amber-500/40 font-semibold rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <PlusCircle className="w-4 h-4 text-amber-400" />
+                      <span>Recargar Créditos</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 pt-1">
+                <Coins className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  Tu saldo actual:{' '}
+                  <strong className="text-amber-300 font-semibold">
+                    {currentBalance} {currentBalance === 1 ? 'crédito disponible' : 'créditos disponibles'}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* UNLOCKED STATE (Only displayed once the user has accessed with 1 credit) */}
+      {/* ========================================================================= */}
+      {aiReading && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Mode Indicator Bar */}
+          <div className="flex items-center justify-between px-4 py-2 bg-stone-950/60 border border-stone-800/80 rounded-xl text-xs text-stone-400">
+            <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-amber-300 font-medium">
-                Viendo Lectura Biográfica con IA {regenerationCount > 1 ? `(Perspectiva #${regenerationCount})` : ''}
+                Lectura Biográfica con IA {regenerationCount > 1 ? `(Perspectiva #${regenerationCount})` : ''}
               </span>
-            </>
-          ) : (
-            <>
-              <BookOpen className="w-3.5 h-3.5 text-stone-400" />
-              <span>Viendo Resumen Estructural Esencial (Cálculo Nativo)</span>
-            </>
-          )}
-        </div>
-        <div className="text-[11px] text-stone-500 hidden sm:block">
-          Formato Markdown Enriquecido
-        </div>
-      </div>
+            </div>
+            <div className="text-[11px] text-stone-500 hidden sm:block">
+              Formato Markdown Enriquecido
+            </div>
+          </div>
 
-      {/* Reading Text Container with Full Markdown Rendering */}
-      <div className="p-6 bg-stone-950 rounded-xl border border-stone-800 text-stone-200 shadow-inner print:bg-white print:text-black print:border-none">
-        <MarkdownRenderer content={activeContent} />
-      </div>
+          {/* Reading Text Container with Full Markdown Rendering */}
+          <div className="p-6 bg-stone-950 rounded-xl border border-stone-800 text-stone-200 shadow-inner print:bg-white print:text-black print:border-none">
+            <MarkdownRenderer content={aiReading} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

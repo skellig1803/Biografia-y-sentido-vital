@@ -230,12 +230,6 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
     syncBirthTime(birthHour, clean);
   };
 
-  const handleQuickTimeSelect = (hourStr: string, minStr: string) => {
-    setBirthHour(hourStr);
-    setBirthMinute(minStr);
-    syncBirthTime(hourStr, minStr);
-  };
-
   const handleNativeDateChange = (dateVal: string) => {
     if (!dateVal) return;
     const { year, month, day } = parseDateParts(dateVal);
@@ -868,9 +862,6 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
                 className="sr-only"
               />
             </div>
-            <p className="text-[11px] text-stone-500">
-              Escribe directamente con el teclado numérico de tu celular.
-            </p>
           </div>
 
           {/* Hora Exacta de Nacimiento con entrada numérica directa */}
@@ -949,26 +940,6 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
                 onChange={(e) => handleNativeTimeChange(e.target.value)}
                 className="sr-only"
               />
-            </div>
-
-            {/* Quick Time Presets */}
-            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              <span className="text-[10px] text-stone-500">Rápido:</span>
-              {[
-                { label: '12:00 (Mediodía)', h: '12', m: '00' },
-                { label: '06:00', h: '06', m: '00' },
-                { label: '18:00', h: '18', m: '00' },
-                { label: '00:00', h: '00', m: '00' },
-              ].map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => handleQuickTimeSelect(p.h, p.m)}
-                  className="text-[10px] px-2 py-0.5 bg-stone-850 hover:bg-stone-800 text-stone-300 hover:text-amber-300 rounded border border-stone-800 transition-colors cursor-pointer"
-                >
-                  {p.label}
-                </button>
-              ))}
             </div>
           </div>
         </div>
@@ -1223,10 +1194,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
               Corrige la ubicación o ingresa las coordenadas para habilitar el cálculo.
             </p>
           ) : (
-            <div className="text-xs text-stone-500 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>Coordenadas y huso horario listos para cálculo astronómico.</span>
-            </div>
+            <div />
           )}
 
           <button
