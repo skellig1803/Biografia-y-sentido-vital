@@ -21,14 +21,14 @@ export const LunarNodeCompass: React.FC<LunarNodeCompassProps> = ({
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5 text-emerald-400" />
-              Eje Kármico & Dirección Evolutiva
+              Eje de Orientación & Crecimiento
             </span>
           </div>
           <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100 mt-2">
-            La Brújula del Alma: Dirección del Nodo Lunar
+            Brújula Vital: Orientación y Dirección de Crecimiento
           </h2>
           <p className="text-xs text-stone-400 mt-0.5">
-            El eje nodal señala de dónde viene el alma (Nodo Sur) y la dirección indispensable hacia la que debe caminar (Nodo Norte) para florecer en tu septenio.
+            Este eje señala los aprendizajes previos (Nodo Sur) y la dirección de desarrollo y expansión personal (Nodo Norte) en tu trayectoria vital.
           </p>
         </div>
 

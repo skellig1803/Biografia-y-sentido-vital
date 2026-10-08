@@ -151,7 +151,7 @@ const SPECIFIC_RULES: ExplanationRule[] = [
     tPlanet: 'pluto',
     nPlanet: 'northNode',
     explanation:
-      'Un poderoso llamado del destino kármico: se eliminan desvíos en tu camino para que abraces con convicción la dirección evolutiva de tu alma.',
+      'Un poderoso llamado de alineación vital: se eliminan desvíos en tu camino para que abraces con convicción tu dirección evolutiva y de crecimiento.',
     tip: 'Acepta los cambios de rumbo con serenidad; están perfectamente sincronizados con tu aprendizaje.',
   },
 

@@ -259,9 +259,9 @@ export const ANTHROPOSOPHIC_SEPTENIOS_BASE = [
     planetarySphere: 'Urano (Intuición pura, fraternidad y visión cósmica)',
     steinerConcept: 'Budhi / Espíritu de Vida: pacificación de las pasiones astrales, capacidad de escuchar sin proyectar y mentoreo a nuevas generaciones.',
     coreQuestion: '¿Puedo contemplar la vida con serenidad, sin pretender controlar el cauce del río?',
-    description: 'A los 55.8 años se manifiesta el tercer Retorno del Nodo Lunar, ofreciendo una visión panorámica de la trama del destino kármico. La persona se convierte en un faro para los demás: su sola presencia irradia templanza y comprensión compasiva de las debilidades humanas.',
+    description: 'A los 55.8 años se manifiesta el tercer Retorno del Nodo Lunar, ofreciendo una visión panorámica de la trama de la trayectoria vital. La persona se convierte en un faro para los demás: su sola presencia irradia templanza y comprensión compasiva de las debilidades humanas.',
     ageSpecificChallenges: [
-      'Tercer retorno nodal lunar (~56 años): integración de los hilos de la vocación kármica.',
+      'Tercer retorno nodal lunar (~56 años): integración de los hilos de la vocación vital.',
       'Trascendencia del ego personal en favor del bien común.',
       'Cultivo de la paz mental ante las pérdidas inevitables del camino terrenal.',
     ],
@@ -279,7 +279,7 @@ export const ANTHROPOSOPHIC_SEPTENIOS_BASE = [
     description: 'A los 58-60 años sobreviene el segundo Retorno de Saturno: la consagración del sabio y maestro de vida. Se evalúa el ciclo completo de la encarnación con gratitud. A los 63 años finaliza la estructura formal de 9 septenios, alcanzando la condición de "hombre libre".',
     ageSpecificChallenges: [
       'Segundo Retorno de Saturno (59 años): asunción de la maestría interior sin amargura.',
-      'Cierre de ciclos kármicos pendientes y perdón consciente.',
+      'Cierre de ciclos pendientes y perdón consciente.',
       'Preparación de una herencia no solo material, sino espiritual e inspiradora.',
     ],
   },
@@ -357,7 +357,7 @@ export function calculateSeptenioData(
       { age: 28, title: 'Crisis de los 28', description: 'Cierre del impulso juvenil y preparación para la madurez real.', isPast: exactAgeYears >= 28.5, isCurrent: Math.abs(exactAgeYears - 28) <= 0.8 },
       { age: 29.5, title: 'Primer Retorno de Saturno', description: 'Consolidación de la estructura vital y asunción de límites.', isPast: exactAgeYears >= 30.5, isCurrent: Math.abs(exactAgeYears - 29.5) <= 1.0 },
       { age: 33, title: 'Año Crístico', description: 'Muerte del hombre antiguo y renacimiento de sentido interior.', isPast: exactAgeYears >= 33.8, isCurrent: Math.abs(exactAgeYears - 33) <= 0.8 },
-      { age: 37.2, title: '2do Retorno Nodal Lunar', description: 'Recalibración del destino kármico y rectificación del rumbo.', isPast: exactAgeYears >= 38, isCurrent: Math.abs(exactAgeYears - 37.2) <= 0.8 },
+      { age: 37.2, title: '2do Retorno Nodal Lunar', description: 'Recalibración de trayectoria y rectificación del rumbo.', isPast: exactAgeYears >= 38, isCurrent: Math.abs(exactAgeYears - 37.2) <= 0.8 },
       { age: 41, title: 'Oposición de Urano / Encrucijada de los 42', description: 'Búsqueda inapelable de autenticidad; traspaso biológico a espiritual.', isPast: exactAgeYears >= 42.5, isCurrent: Math.abs(exactAgeYears - 41.5) <= 1.2 },
       { age: 50, title: 'Retorno de Quirón', description: 'Sanación de la herida primaria y entrega compasiva.', isPast: exactAgeYears >= 50.8, isCurrent: Math.abs(exactAgeYears - 50) <= 0.8 },
       { age: 55.8, title: '3er Retorno Nodal Lunar', description: 'Síntesis madura de los hilos de la vocación del alma.', isPast: exactAgeYears >= 56.5, isCurrent: Math.abs(exactAgeYears - 55.8) <= 0.8 },
@@ -397,7 +397,7 @@ export function calculateLunarNodeData(
   if (cyclesCompleted === 0) {
     cycleMeaning = 'Te encuentras en tu primer ciclo nodal de vida. El alma está ensayando sus primeros pasos conscientes en la dirección de su llamado.';
   } else if (cyclesCompleted === 1) {
-    cycleMeaning = 'Te encuentras en tu segundo ciclo nodal (entre los 18.6 y los 37.2 años). Es la etapa de mayor concreción terrenal del propósito kármico.';
+    cycleMeaning = 'Te encuentras en tu segundo ciclo nodal (entre los 18.6 y los 37.2 años). Es la etapa de mayor concreción terrenal del propósito evolutivo.';
   } else if (cyclesCompleted === 2) {
     cycleMeaning = 'Te encuentras en tu tercer ciclo nodal (entre los 37.2 y los 55.8 años). Las lecciones se interiorizan como sabiduría y mentoreo desinteresado.';
   } else {
@@ -573,7 +573,7 @@ export function calculateYearOfLifeAnalysis(
     },
     8: {
       theme: 'Año de Transformación Profunda, Regeneración y Soltar Apegos',
-      energy: 'Un año alquímico de muda de piel. Cierres kármicos, revisión de finanzas compartidas, superación de temores y renacimiento psicológico.',
+      energy: 'Un año alquímico de muda de piel. Cierres de ciclos, revisión de finanzas compartidas, superación de temores y renacimiento psicológico.',
       directives: [
         'Acepta los finales necesarios como antesala de un nuevo nacimiento.',
         'Trabaja en sanar heridas del pasado mediante terapia o introspección.',
@@ -624,7 +624,7 @@ export function calculateYearOfLifeAnalysis(
       ],
     },
     12: {
-      theme: 'Año de Cierre Kármico, Retiro Interior y Gestación Silenciosa',
+      theme: 'Año de Cierre de Ciclos, Retiro Interior y Gestación Silenciosa',
       energy: 'Último año del ciclo de 12 años. Se impone el descanso, la culminación de etapas que ya cumplieron su propósito y la preparación espiritual para el nuevo inicio.',
       directives: [
         'Permítete momentos de silencio, retiro y contemplación.',

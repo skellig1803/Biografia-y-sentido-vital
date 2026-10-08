@@ -1,4 +1,4 @@
-// Credit and Pay-Per-Use management system
+// Credit and Pay-Per-Use management system with Lemon Squeezy integration
 export interface CreditTransaction {
   id: string;
   timestamp: string;
@@ -6,6 +6,8 @@ export interface CreditTransaction {
   amount: number; // positive for addition, negative for deduction
   description: string;
   balanceAfter: number;
+  provider?: 'lemonsqueezy' | 'voucher' | 'system';
+  referenceId?: string;
 }
 
 export interface PricingPlan {
@@ -17,81 +19,111 @@ export interface PricingPlan {
   popular?: boolean;
   savingsPercent?: number;
   features: string[];
+  checkoutUrl?: string;
 }
+
+export const INITIAL_WELCOME_CREDITS = 5;
 
 export const PRICING_PLANS: PricingPlan[] = [
   {
     id: 'pack_single',
-    name: '1 Lectura Vital',
-    tagline: 'Ideal para autoconocimiento personal',
+    name: '1 Reporte de Trayectoria Vital',
+    tagline: 'Ideal para autoconocimiento y análisis personal',
     credits: 1,
     priceUsd: 3.99,
     features: [
-      '1 Lectura Biográfica Profunda con IA',
-      'Desglose kármico y dhármico de Nodos',
-      'Clima del Septenio y Año de Vida',
-      'Alquimia de Tránsitos Planetarios Activos',
-      'Exportación e Impresión en Alta Calidad',
+      '1 Reporte de Análisis Biográfico con IA',
+      'Desglose de Ejes de Crecimiento y Potencial',
+      'Clima del Septenio y Análisis Anual',
+      'Dinámica de Tránsitos Temporales',
+      'Exportación e Impresión en Alta Calidad PDF',
     ],
   },
   {
     id: 'pack_family',
-    name: 'Pack 5 Lecturas',
+    name: 'Pack 5 Reportes de Análisis',
     tagline: 'El más elegido • Para ti y tus seres queridos',
     credits: 5,
     priceUsd: 14.99,
     popular: true,
     savingsPercent: 25,
     features: [
-      '5 Lecturas Biográficas Profundas con IA',
-      'Equivale a solo $2.99 por informe',
+      '5 Reportes de Análisis Biográfico con IA',
+      'Equivale a solo $2.99 por reporte',
       'Sin fecha de caducidad de créditos',
-      'Comparativa de septenios y tránsitos',
-      'Soporte prioritario de cálculo',
+      'Comparativa de ciclos vitales y tránsitos',
+      'Soporte técnico de cálculo prioritario',
     ],
   },
   {
     id: 'pack_professional',
-    name: 'Pack Profesional (15 Lecturas)',
-    tagline: 'Para terapeutas, biógrafos y astrólogos',
+    name: 'Pack Profesional (15 Reportes)',
+    tagline: 'Para facilitadores, biógrafos y consultores',
     credits: 15,
     priceUsd: 29.99,
     savingsPercent: 50,
     features: [
-      '15 Lecturas Biográficas Profundas con IA',
-      'Equivale a solo $1.99 por informe',
-      'Ideal para consultas con pacientes o clientes',
-      'Informes ilimitados sin caducidad',
-      'Licencia de uso en consulta profesional',
+      '15 Reportes de Análisis Biográfico con IA',
+      'Equivale a solo $1.99 por reporte',
+      'Ideal para consultas y mentorías profesionales',
+      'Informes ilimitados sin caducidad temporal',
+      'Licencia de uso para consultoría de desarrollo',
     ],
   },
 ];
 
 const STORAGE_KEY = 'biografia_vital_credits';
 const TRANSACTIONS_KEY = 'biografia_vital_transactions';
+const WELCOME_5_KEY = 'biografia_vital_welcome_5_granted_v2';
 
 type CreditListener = (balance: number) => void;
 const listeners = new Set<CreditListener>();
 
 export function getCreditBalance(): number {
-  if (typeof window === 'undefined') return 1;
+  if (typeof window === 'undefined') return INITIAL_WELCOME_CREDITS;
   const stored = localStorage.getItem(STORAGE_KEY);
+  
   if (stored === null) {
-    // Initial welcome bonus: 1 free credit to try the AI synthesis
-    const initialCredits = 1;
+    // Initial welcome bonus: 5 free credits to try the AI synthesis
+    const initialCredits = INITIAL_WELCOME_CREDITS;
     localStorage.setItem(STORAGE_KEY, initialCredits.toString());
+    localStorage.setItem(WELCOME_5_KEY, 'true');
     recordTransaction({
       id: 'tx_init_' + Date.now(),
       timestamp: new Date().toISOString(),
       type: 'initial',
       amount: initialCredits,
-      description: 'Crédito de bienvenida de cortesía',
+      description: '¡Obsequio inicial de bienvenida! (+5 créditos gratuitos)',
       balanceAfter: initialCredits,
+      provider: 'system',
     });
     return initialCredits;
   }
+
   const parsed = parseInt(stored, 10);
-  return isNaN(parsed) ? 0 : parsed;
+  const current = isNaN(parsed) ? 0 : parsed;
+
+  // Upgrade migration for users who previously got 1 credit: ensure they receive the 5 welcome credits
+  if (!localStorage.getItem(WELCOME_5_KEY)) {
+    localStorage.setItem(WELCOME_5_KEY, 'true');
+    if (current < INITIAL_WELCOME_CREDITS) {
+      const topUp = INITIAL_WELCOME_CREDITS - current;
+      const updated = current + topUp;
+      localStorage.setItem(STORAGE_KEY, updated.toString());
+      recordTransaction({
+        id: 'tx_welcome5_' + Date.now(),
+        timestamp: new Date().toISOString(),
+        type: 'initial',
+        amount: topUp,
+        description: '¡Obsequio especial! Activación de 5 créditos de bienvenida',
+        balanceAfter: updated,
+        provider: 'system',
+      });
+      return updated;
+    }
+  }
+
+  return current;
 }
 
 export function subscribeToCredits(listener: CreditListener): () => void {
@@ -134,7 +166,13 @@ export function getCreditTransactions(): CreditTransaction[] {
   }
 }
 
-export function addCredits(amount: number, description: string, type: 'purchase' | 'voucher' = 'purchase'): number {
+export function addCredits(
+  amount: number,
+  description: string,
+  type: 'purchase' | 'voucher' | 'initial' = 'purchase',
+  provider: 'lemonsqueezy' | 'voucher' | 'system' = 'purchase' === type ? 'lemonsqueezy' : 'system',
+  referenceId?: string
+): number {
   const current = getCreditBalance();
   const updated = current + amount;
   localStorage.setItem(STORAGE_KEY, updated.toString());
@@ -145,6 +183,8 @@ export function addCredits(amount: number, description: string, type: 'purchase'
     amount,
     description,
     balanceAfter: updated,
+    provider,
+    referenceId,
   });
   notifyListeners(updated);
   return updated;

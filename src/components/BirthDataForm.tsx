@@ -449,7 +449,7 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
         });
       } else {
         setLocationError(
-          `No se encontró la ubicación "${trimmed}" ni en la base de datos local ni en Internet. Para evitar cálculos erróneos en la carta natal, ingresa una ciudad más cercana o ajusta las coordenadas manualmente.`
+          `No se encontró la ubicación "${trimmed}" ni en la base de datos local ni en Internet. Para evitar cálculos erróneos en el perfil biográfico, ingresa una ciudad más cercana o ajusta las coordenadas manualmente.`
         );
         setLocationNotice({
           type: 'error',
@@ -1211,12 +1211,12 @@ export const BirthDataForm: React.FC<BirthDataFormProps> = ({
             ) : isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-stone-950" />
-                <span>Calculando carta y septenio...</span>
+                <span>Calculando perfil y septenios...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 text-stone-950" />
-                <span>Calcular Carta Natal y Biografía Antroposófica</span>
+                <span>Calcular Perfil Biográfico y Cronología Vital</span>
               </>
             )}
           </button>

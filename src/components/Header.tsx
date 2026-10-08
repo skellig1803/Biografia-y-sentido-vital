@@ -8,7 +8,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  creditBalance = 1,
+  creditBalance = 5,
   onOpenCreditsModal,
 }) => {
   return (
@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
               Faro <span className="text-amber-400">Biográfico</span>
             </h1>
             <p className="text-xs text-stone-400 font-sans">
-              Efemérides Suizas (Plácidus) • Septenios de Steiner • Eje Nodal • Tránsitos Celestes
+              Efemérides Astronómicas • Cronología de Septenios • Análisis de Desarrollo Personal • Trayectoria Vital
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { computeSwissEphemerisChart } from './server/swissEphemeris';
@@ -37,20 +38,79 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+    provider: 'lemonsqueezy',
+    hasLemonSqueezy: Boolean(
+      process.env.LEMONSQUEEZY_API_KEY ||
+      process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE ||
+      process.env.LEMONSQUEEZY_STORE_ID
+    ),
   });
 });
 
-// Billing & Pricing Configuration endpoint
+// Lemon Squeezy Billing & Pricing Configuration endpoint
 app.get('/api/billing/config', (req, res) => {
   res.json({
+    provider: 'lemonsqueezy',
     currency: 'USD',
     plans: [
-      { id: 'pack_single', credits: 1, price: 3.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_SINGLE || null },
-      { id: 'pack_family', credits: 5, price: 14.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_PACK5 || null },
-      { id: 'pack_professional', credits: 15, price: 29.99, paymentLink: process.env.STRIPE_PAYMENT_LINK_PACK15 || null },
+      {
+        id: 'pack_single',
+        credits: 1,
+        price: 3.99,
+        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE || null,
+      },
+      {
+        id: 'pack_family',
+        credits: 5,
+        price: 14.99,
+        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK5 || null,
+      },
+      {
+        id: 'pack_professional',
+        credits: 15,
+        price: 29.99,
+        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK15 || null,
+      },
     ],
-    hasLiveStripe: Boolean(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_PAYMENT_LINK_SINGLE),
+    storeId: process.env.LEMONSQUEEZY_STORE_ID || null,
+    hasLiveLemonSqueezy: Boolean(
+      process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE ||
+      process.env.LEMONSQUEEZY_API_KEY ||
+      process.env.LEMONSQUEEZY_STORE_ID
+    ),
   });
+});
+
+// Lemon Squeezy Webhook receiver (for order_created, subscription_created, etc.)
+app.post('/api/lemonsqueezy/webhook', (req, res) => {
+  try {
+    const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    const signature = req.headers['x-signature'] as string;
+
+    if (webhookSecret && signature) {
+      const hmac = crypto.createHmac('sha256', webhookSecret);
+      const digest = hmac.update(JSON.stringify(req.body)).digest('hex');
+      if (digest !== signature) {
+        console.warn('Invalid Lemon Squeezy webhook signature');
+        return res.status(401).json({ error: 'Firma de webhook inválida' });
+      }
+    }
+
+    const eventName = req.body?.meta?.event_name;
+    const customData = req.body?.meta?.custom_data;
+    const orderData = req.body?.data?.attributes;
+
+    console.log(`[Lemon Squeezy Webhook] Event received: ${eventName}`, {
+      orderId: req.body?.data?.id,
+      total: orderData?.total_formatted,
+      customData,
+    });
+
+    return res.json({ received: true, event: eventName });
+  } catch (err: any) {
+    console.error('Error in Lemon Squeezy webhook:', err);
+    return res.status(500).json({ error: 'Error procesando webhook' });
+  }
 });
 
 // Online Geocoding endpoint using OpenStreetMap (Nominatim) & Open-Meteo for Timezone

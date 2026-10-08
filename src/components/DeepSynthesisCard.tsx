@@ -196,10 +196,10 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
             )}
           </div>
           <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100 mt-2">
-            Síntesis Biográfica del Alma & Clima de Tránsitos
+            Informe Integral de Trayectoria & Dinámica Temporal
           </h2>
           <p className="text-xs text-stone-400 mt-0.5">
-            Integración de la carta natal, el eje nodal kármico, el septenio antroposófico y los tránsitos celestes para {calculation.birthData.name}.
+            Integración del perfil biográfico, el eje de crecimiento, la cronología de septenios y la dinámica temporal para {calculation.birthData.name}.
           </p>
         </div>
 
@@ -312,10 +312,10 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
                   <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
                   <div className="text-center space-y-1">
                     <p className="text-sm font-semibold text-stone-100">
-                      Canalizando tu Lectura Integral con IA...
+                      Generando tu Informe Integral con IA...
                     </p>
                     <p className="text-xs text-stone-400">
-                      Sintetizando septenios, carta natal y tránsitos en tiempo real para {calculation.birthData.name}.
+                      Sintetizando septenios, perfil biográfico y análisis temporal para {calculation.birthData.name}.
                     </p>
                   </div>
                 </div>

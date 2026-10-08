@@ -31,7 +31,7 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
               <Orbit className="w-3.5 h-3.5 text-amber-400" />
-              Reloj Cósmico en Tiempo Real
+              Reloj Temporal en Tiempo Real
             </span>
             <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-stone-800 text-stone-300 flex items-center gap-1">
               <Calendar className="w-3 h-3 text-stone-400" />
@@ -39,10 +39,10 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
             </span>
           </div>
           <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100 mt-2">
-            Visualización de Tránsitos Planetarios Activos
+            Dinámica de Tránsitos Temporales Activos
           </h2>
           <p className="text-xs text-stone-400 mt-0.5">
-            Los planetas actuales en el firmamento activan puntos sensibles de tu carta natal, sincronizándose con los hitos del septenio.
+            Los tránsitos planetarios actuales interactúan con tu perfil biográfico, sincronizándose con la cronología de tus septenios.
           </p>
         </div>
 

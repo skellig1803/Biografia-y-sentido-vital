@@ -193,7 +193,7 @@ export default function App() {
                       )}
                     </div>
                     <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100">
-                      Carta Natal Biográfica de {birthData.name}
+                      Perfil Biográfico Digital de {birthData.name}
                     </h2>
                     <p className="text-xs sm:text-sm text-stone-400 max-w-3xl leading-relaxed">
                       Cálculo geocéntrico tropical verificado matemáticamente. Sistema de casas Plácidus, corrección de refracción aparente, tiempo sideral Greenwich y posiciones precisas de los 10 planetas, Quirón, Nodos Lunares, Ascendente y Medio Cielo.
@@ -447,7 +447,7 @@ export default function App() {
       <footer className="border-t border-stone-800 bg-stone-900/50 py-6 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            Faro Biográfico • Cálculos astronómicos, eje kármico de Steiner & tránsitos en tiempo real
+            Faro Biográfico • Cálculos astronómicos, cronología de septenios y análisis temporal en tiempo real
           </p>
           <div className="flex items-center gap-4 text-stone-400">
             <span>Rudolf Steiner</span>

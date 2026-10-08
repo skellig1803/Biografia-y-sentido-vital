@@ -632,7 +632,7 @@ function generateTransitImpact(
     return `Júpiter aporta confianza, perspectiva expandida y oportunidades benéficas para hacer crecer el potencial de tu ${natalP.name} en tu año de vida.`;
   }
   if (transitP.id === 'northNode') {
-    return `El Nodo Norte activa el raíl de tu destino kármico: sincronías y personas clave catalizan el llamado evolutivo de tu ${natalP.name}.`;
+    return `El Nodo Norte activa tu eje de desarrollo y crecimiento: sincronías y personas clave catalizan el llamado evolutivo de tu ${natalP.name}.`;
   }
   return `Tránsito activo de ${transitP.name} sobre tu ${natalP.name}: dinamiza la energía y despierta los temas del septenio actual.`;
 }
