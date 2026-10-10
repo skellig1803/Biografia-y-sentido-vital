@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import sweph from 'sweph';
+import { createRequire } from 'module';
 import {
   Aspect,
   BirthData,
@@ -20,11 +20,19 @@ import {
 import { HOUSE_THEMES, PLANET_INFO, ZODIAC_SIGNS } from '../src/utils/astrologyEngine';
 import { getTransitExplanation } from '../src/utils/transitExplanations';
 import { calculateHistoricalTimezoneOffset } from '../src/data/cities';
+import { calculateCompleteChart } from '../src/utils/calculator';
 
-// Initialize Swiss Ephemeris path
-const ephePath = path.resolve(process.cwd(), 'ephe');
-if (fs.existsSync(ephePath)) {
-  sweph.set_ephe_path(ephePath);
+// Safely load Swiss Ephemeris native module if available
+const nodeRequire = createRequire(import.meta.url);
+let sweph: any = null;
+try {
+  sweph = nodeRequire('sweph');
+  const ephePath = path.resolve(process.cwd(), 'ephe');
+  if (sweph && fs.existsSync(ephePath)) {
+    sweph.set_ephe_path(ephePath);
+  }
+} catch {
+  sweph = null;
 }
 
 // Flags: SEFLG_SPEED (256) calculates speeds for retrograde determination
@@ -115,6 +123,11 @@ function getHouseNumber(longitude: number, cuspLongitudes: number[]): number {
 }
 
 export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalculationResult {
+  if (!sweph) {
+    console.info('[SwissEphemeris] Módulo nativo no disponible en este entorno. Usando motor TypeScript de alta precisión.');
+    return calculateCompleteChart(birthData);
+  }
+
   const [bYear, bMonth, bDay] = birthData.birthDate.split('-').map(Number);
   const [bHour, bMin] = birthData.birthTime.split(':').map(Number);
   let tz = Number(birthData.timezoneOffset);
