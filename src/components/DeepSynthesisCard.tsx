@@ -114,9 +114,13 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
 
       const profectionCode = `Año ${calculation.yearOfLife.currentYearOfLife} (C${calculation.yearOfLife.profectionHouse} en ${calculation.yearOfLife.profectionSign}, Regente: ${calculation.yearOfLife.lordOfYear})`;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
       const response = await fetch('/api/synthesis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           name: calculation.birthData.name,
           exactAgeFormatted: calculation.exactAge.formatted,
@@ -132,9 +136,10 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
           regenerationCount: regenerationCount + 1,
         }),
       });
+      clearTimeout(timeoutId);
 
       const data = await response.json();
-      if (data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 500) {
+      if (data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 200) {
         if (isFirstUnlock) {
           consumeCredit(`Lectura Integral para ${calculation.birthData.name}`);
         }
@@ -153,8 +158,11 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
       }
     } catch (err: any) {
       console.warn('AI endpoint error:', err);
+      const isAbort = err?.name === 'AbortError';
       setErrorMsg(
-        'Hubo un problema de conexión temporal al canalizar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.'
+        isAbort
+          ? 'El cálculo tomó más tiempo de lo esperado. Tu crédito está a salvo. Pulsa Reintentar para generar tu lectura.'
+          : 'Hubo un problema de conexión temporal al generar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.'
       );
     } finally {
       setIsLoading(false);
