@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { computeSwissEphemerisChart } from './server/swissEphemeris';
 import { generateGuaranteedCompleteSynthesis } from './server/comprehensiveSynthesisFallback';
+import { analyzeBiographicalSeptenios } from './lib/gemini.js';
+import { upsertBiografia, getUserById } from './lib/db.js';
 
 dotenv.config();
 
@@ -249,6 +251,108 @@ function isReadingComplete(text: string, finishReason?: string): { complete: boo
   return { complete: true };
 }
 
+// Endpoint para evaluar un septenio biográfico con Gemini Structured Outputs y persistir en BD
+app.post('/api/biografia/evaluar', async (req, res) => {
+  try {
+    const { user_id, septenio_num, recuerdos, patrones_clave } = req.body;
+
+    // Validación de parámetros obligatorios
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'El campo user_id es obligatorio y debe ser un UUID válido.',
+      });
+    }
+
+    const septenioNumber = Number(septenio_num);
+    if (!Number.isInteger(septenioNumber) || septenioNumber < 1 || septenioNumber > 7) {
+      return res.status(400).json({
+        success: false,
+        error: 'El campo septenio_num debe ser un número entero entre 1 y 7.',
+      });
+    }
+
+    if (!recuerdos || typeof recuerdos !== 'string' || !recuerdos.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'El campo recuerdos es obligatorio y debe contener una descripción válida.',
+      });
+    }
+
+    // 1. Obtener contexto del usuario si existe en la base de datos
+    let userContext: any = null;
+    try {
+      userContext = await getUserById(user_id);
+    } catch (err: any) {
+      console.warn(`[evaluar] No se pudo recuperar usuario ${user_id} de BD:`, err?.message);
+    }
+
+    // 2. Consultar a Gemini (/lib/gemini.js) con Structured Outputs
+    const entradaSeptenio = {
+      septenio_num: septenioNumber,
+      recuerdos: recuerdos.trim(),
+      patrones_previos: patrones_clave || null,
+    };
+
+    const interpretacion = await analyzeBiographicalSeptenios(entradaSeptenio, {
+      contextoAdicional: userContext
+        ? {
+            nombre: userContext.nombre,
+            fecha_nacimiento: userContext.fecha_nacimiento,
+            lugar_nacimiento: userContext.lugar_nacimiento,
+          }
+        : null,
+    });
+
+    // 3. Persistir en la base de datos (/lib/db.js)
+    const patronesAGuardar =
+      patrones_clave && patrones_clave.trim()
+        ? `${patrones_clave.trim()}\n\n[Hilos Conductores IA]: ${interpretacion.hilos_conductores.join('; ')}`
+        : interpretacion.hilos_conductores.join('\n');
+
+    let biografiaGuardada: any = null;
+    let dbPersisted = true;
+    let dbWarning: string | null = null;
+
+    try {
+      biografiaGuardada = await upsertBiografia({
+        user_id,
+        septenio_num: septenioNumber,
+        recuerdos: recuerdos.trim(),
+        patrones_clave: patronesAGuardar,
+      });
+    } catch (dbErr: any) {
+      console.error('[evaluar] Error al guardar en base de datos:', dbErr?.message || dbErr);
+      dbPersisted = false;
+      dbWarning = `Evaluación generada con éxito, pero la persistencia en BD falló: ${dbErr?.message || 'Error de BD'}`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      persisted: dbPersisted,
+      warning: dbWarning,
+      data: {
+        biografia_id: biografiaGuardada?.id || null,
+        user_id,
+        septenio_num: septenioNumber,
+        recuerdos: recuerdos.trim(),
+        patrones_clave: biografiaGuardada?.patrones_clave || patronesAGuardar,
+        hilos_conductores: interpretacion.hilos_conductores,
+        septenio_analizado: interpretacion.septenio_analizado,
+        sintesis_salutogenica: interpretacion.sintesis_salutogenica,
+        modelo_utilizado: interpretacion.modelo_utilizado,
+        timestamp: biografiaGuardada?.timestamp || new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error en /api/biografia/evaluar:', error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || 'Error al evaluar el septenio biográfico',
+    });
+  }
+});
+
 // Gemini Synthesis Endpoint for Anthroposophic Biography & Astrological Transit Reading
 app.post('/api/synthesis', async (req, res) => {
   try {
@@ -353,12 +457,14 @@ Escribe una guía biográfica completa y de alta calidad abarcando obligatoriame
 ## 3. El Clima Vital del Año de Vida Actual
 ## 4. Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente`;
 
-    // Resilient generation with fallback models and high token budget to prevent truncations
-    // Prioritize high-availability and ultra-fast flash models
+    // Cascada de modelos priorizando Gemini 3.8 con degradación elegante a versiones previas
     const modelsToTry = [
+      'gemini-3.8-flash',
       'gemini-3.5-flash',
       'gemini-3.1-flash-lite',
-      'gemini-3.8-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
       'gemini-flash-latest',
     ];
     let readingText = '';
@@ -427,7 +533,7 @@ Escribe una guía biográfica completa y de alta calidad abarcando obligatoriame
 });
 
 // Setup Vite middleware in dev or static files in production
-async function startServer() {
+export async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -448,4 +554,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start standalone HTTP server when not running in serverless environments like Vercel
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
