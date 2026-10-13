@@ -1,15 +1,17 @@
 import React from 'react';
-import { Compass, Sparkles, PlusCircle } from 'lucide-react';
+import { Compass, Sparkles, PlusCircle, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   hasCalculated?: boolean;
   creditBalance?: number;
   onOpenCreditsModal?: () => void;
+  onOpenLegal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   creditBalance = 5,
   onOpenCreditsModal,
+  onOpenLegal,
 }) => {
   return (
     <header className="border-b border-stone-800 bg-stone-900/90 backdrop-blur-md sticky top-0 z-40">
@@ -28,9 +30,22 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Credit wallet pill & button */}
-        {onOpenCreditsModal && (
-          <div className="flex items-center gap-2">
+        {/* Action buttons */}
+        <div className="flex items-center gap-2">
+          {onOpenLegal && (
+            <button
+              type="button"
+              onClick={onOpenLegal}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-950/60 border border-stone-800 hover:border-purple-500/40 text-stone-400 hover:text-stone-200 text-xs transition-all cursor-pointer"
+              title="Centro Legal, Términos y Transparencia"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">Legal</span>
+            </button>
+          )}
+
+          {/* Credit wallet pill & button */}
+          {onOpenCreditsModal && (
             <button
               type="button"
               onClick={onOpenCreditsModal}
@@ -48,8 +63,8 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Recargar</span>
               </div>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

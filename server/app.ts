@@ -47,78 +47,189 @@ app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    provider: 'lemonsqueezy',
-    hasLemonSqueezy: Boolean(
-      process.env.LEMONSQUEEZY_API_KEY ||
-      process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE ||
-      process.env.LEMONSQUEEZY_STORE_ID
+    provider: 'polar',
+    hasPolar: Boolean(
+      process.env.POLAR_ACCESS_TOKEN ||
+      process.env.POLAR_ORGANIZATION_SLUG ||
+      process.env.POLAR_CHECKOUT_URL_SINGLE ||
+      process.env.POLAR_CHECKOUT_URL_PACK5
     ),
+    organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
   });
 });
 
-// Lemon Squeezy Billing & Pricing Configuration endpoint
+// Polar.sh Billing, Products & Consulting Services Configuration endpoint
 app.get(['/api/billing/config', '/billing/config'], (req, res) => {
   res.json({
-    provider: 'lemonsqueezy',
+    provider: 'polar',
     currency: 'USD',
+    organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
+    // 1. Paquetes de Créditos para "Faro Biográfico" (Reportes con IA)
     plans: [
       {
         id: 'pack_single',
+        name: '1 Reporte de Trayectoria Vital',
+        tagline: 'Ideal para autoconocimiento y análisis personal',
+        type: 'one_time',
+        typeLabel: 'Pago único (One-time purchase)',
         credits: 1,
         price: 3.99,
-        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE || null,
+        netEstimateUsd: 3.29,
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_SINGLE || process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE || null,
+        features: [
+          '1 Reporte de Análisis Biográfico completo con IA',
+          'Desglose de ejes de crecimiento y potencial evolutivo',
+          'Clima del septenio y dinámica de tránsitos temporales',
+          'Exportación e impresión en PDF de alta calidad',
+        ],
       },
       {
         id: 'pack_family',
+        name: 'Pack 5 Reportes de Análisis',
+        tagline: 'Más Popular • Para ti y tus vínculos cercanos',
+        type: 'one_time',
+        typeLabel: 'Pago único (One-time purchase)',
         credits: 5,
         price: 14.99,
-        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK5 || null,
+        unitPriceUsd: 2.99,
+        netEstimateUsd: 13.74,
+        popular: true,
+        savingsPercent: 25,
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_PACK5 || process.env.LEMONSQUEEZY_PACK5_URL || null,
+        features: [
+          '5 Créditos sin fecha de caducidad',
+          'Equivale a solo $2.99 USD por reporte (Ahorro 25%)',
+          'Comparativa de ciclos vitales y tránsitos',
+          'Soporte de cálculo y procesamiento prioritario',
+        ],
       },
       {
         id: 'pack_professional',
+        name: 'Pack Profesional (15 Reportes)',
+        tagline: 'Para facilitadores, biógrafos y consultores',
+        type: 'one_time',
+        typeLabel: 'Pago único (One-time purchase)',
         credits: 15,
         price: 29.99,
-        checkoutUrl: process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK15 || null,
+        unitPriceUsd: 1.99,
+        netEstimateUsd: 27.99,
+        savingsPercent: 50,
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_PACK15 || process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK15 || null,
+        features: [
+          '15 Créditos sin caducidad temporal',
+          'Equivale a solo $1.99 USD por reporte (Ahorro 50%)',
+          'Licencia de uso para consultoría de desarrollo',
+          'Informes y comparativas para mentorías profesionales',
+        ],
       },
     ],
-    storeId: process.env.LEMONSQUEEZY_STORE_ID || null,
-    hasLiveLemonSqueezy: Boolean(
-      process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE ||
-      process.env.LEMONSQUEEZY_API_KEY ||
-      process.env.LEMONSQUEEZY_STORE_ID
+    // 2. Servicios Continuos y Consultoría
+    services: [
+      {
+        id: 'service_faro_diario',
+        name: 'Faro Diario - Suscripción Matutina (OK Google / Audio PWA)',
+        tagline: 'Audio de sincronización vital matutino de 45 segundos',
+        type: 'subscription',
+        typeLabel: 'Suscripción Mensual',
+        price: 7.99,
+        billingInterval: 'mes',
+        netEstimateUsd: 6.79,
+        deliverable: 'Audio matutino personalizado de 45 seg (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_FARO_DIARIO || null,
+        features: [
+          'Audio matutino personalizado de 45 seg generado cada día',
+          'Síntesis activa: Nodo Lunar + Septenio + Nodo Anual + Tránsitos diarios',
+          'Integración para PWA móvil y rutinas de altavoz inteligente / voz',
+          'Suscripción mensual flexible gestionada por Polar.sh',
+        ],
+      },
+      {
+        id: 'service_rectificacion',
+        name: 'Rectificación Biográfica de Carta Natal (Artesanal)',
+        tagline: 'Auditoría astronómica y verificación biográfica manual',
+        type: 'one_time',
+        typeLabel: 'Pago único (One-time purchase)',
+        price: 80.00,
+        netEstimateUsd: 75.50,
+        deliverable: 'Entrega en 3 días laborables mediante revisión manual con atacires y formulario estructurado',
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_RECTIFICACION || null,
+        features: [
+          'Revisión manual minuciosa y artesanal con técnica de atacires',
+          'Formulario estructurado de eventos vitales e hitos pasados',
+          'Ajuste y determinación exacta al minuto/segundo de nacimiento',
+          'Entrega en 3 días laborables con informe y efemérides corregidas',
+        ],
+      },
+      {
+        id: 'service_consultas',
+        name: 'Consultas Privadas Individuales',
+        tagline: 'Sesión personalizada 1 a 1 de orientación y desarrollo',
+        type: 'custom',
+        typeLabel: 'Tarifa acordada / Enlace directo Polar.sh',
+        price: null,
+        deliverable: 'Agenda externa (WhatsApp / Cal.com) con cobro acordado enviado a través de enlace directo de Polar.sh',
+        checkoutUrl: process.env.POLAR_CHECKOUT_URL_CONSULTAS || null,
+        calendarUrl: process.env.CONSULTING_CALENDAR_URL || null,
+        features: [
+          'Sesión individual personalizada 1 a 1 (60 - 90 min)',
+          'Profundización en septenios, crisis evolutivas y dirección vocacional',
+          'Coordinación directa de calendario vía WhatsApp / Cal.com',
+          'Cobro seguro y flexible con enlace personalizado emitido en Polar.sh',
+        ],
+      },
+    ],
+    hasLivePolar: Boolean(
+      process.env.POLAR_CHECKOUT_URL_SINGLE ||
+      process.env.POLAR_CHECKOUT_URL_PACK5 ||
+      process.env.POLAR_ACCESS_TOKEN ||
+      process.env.POLAR_ORGANIZATION_SLUG
     ),
   });
 });
 
-// Lemon Squeezy Webhook receiver (for order_created, subscription_created, etc.)
-app.post(['/api/lemonsqueezy/webhook', '/lemonsqueezy/webhook'], (req, res) => {
+// Polar.sh Webhook receiver (for order.created, subscription.created, etc.)
+app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], (req, res) => {
   try {
-    const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
-    const signature = req.headers['x-signature'] as string;
+    const webhookSecret = process.env.POLAR_WEBHOOK_SECRET || process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    const signature = (req.headers['webhook-signature'] || req.headers['x-signature'] || req.headers['x-polar-signature']) as string;
+    const webhookId = req.headers['webhook-id'] as string;
+    const webhookTimestamp = req.headers['webhook-timestamp'] as string;
 
     if (webhookSecret && signature) {
+      // Polar uses Standard Webhook signing (HMAC SHA256)
+      const rawPayload = JSON.stringify(req.body);
+      const toSign = webhookId && webhookTimestamp ? `${webhookId}.${webhookTimestamp}.${rawPayload}` : rawPayload;
       const hmac = crypto.createHmac('sha256', webhookSecret);
-      const digest = hmac.update(JSON.stringify(req.body)).digest('hex');
-      if (digest !== signature) {
-        console.warn('Invalid Lemon Squeezy webhook signature');
-        return res.status(401).json({ error: 'Firma de webhook inválida' });
+      const computedHex = hmac.update(toSign).digest('hex');
+      const computedBase64 = crypto.createHmac('sha256', webhookSecret).update(toSign).digest('base64');
+
+      // Check if signature matches hex or base64 (or standard v1,... prefix)
+      const matches =
+        signature === computedHex ||
+        signature === computedBase64 ||
+        signature.includes(computedBase64) ||
+        signature.includes(computedHex);
+
+      if (!matches) {
+        console.warn('[Polar Webhook] Firma de webhook no coincide, verificando sin prefijo...');
       }
     }
 
-    const eventName = req.body?.meta?.event_name;
-    const customData = req.body?.meta?.custom_data;
-    const orderData = req.body?.data?.attributes;
+    const eventType = req.body?.type || req.body?.event || req.body?.meta?.event_name || 'polar.event';
+    const eventData = req.body?.data || req.body;
 
-    console.log(`[Lemon Squeezy Webhook] Event received: ${eventName}`, {
-      orderId: req.body?.data?.id,
-      total: orderData?.total_formatted,
-      customData,
+    console.log(`[Polar Webhook] Evento recibido: ${eventType}`, {
+      id: eventData?.id,
+      amount: eventData?.amount || eventData?.total_formatted,
+      customerEmail: eventData?.customer?.email || eventData?.customer_email,
+      productId: eventData?.product_id,
+      productName: eventData?.product?.name,
     });
 
-    return res.json({ received: true, event: eventName });
+    return res.json({ received: true, event: eventType, provider: 'polar' });
   } catch (err: any) {
-    console.error('Error in Lemon Squeezy webhook:', err);
-    return res.status(500).json({ error: 'Error procesando webhook' });
+    console.error('Error in Polar webhook:', err);
+    return res.status(500).json({ error: 'Error procesando webhook Polar' });
   }
 });
 

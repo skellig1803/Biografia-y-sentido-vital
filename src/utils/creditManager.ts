@@ -1,4 +1,4 @@
-// Credit and Pay-Per-Use management system with Lemon Squeezy integration
+// Credit and Pay-Per-Use management system with Polar.sh integration
 export interface CreditTransaction {
   id: string;
   timestamp: string;
@@ -6,7 +6,7 @@ export interface CreditTransaction {
   amount: number; // positive for addition, negative for deduction
   description: string;
   balanceAfter: number;
-  provider?: 'lemonsqueezy' | 'voucher' | 'system';
+  provider?: 'polar' | 'voucher' | 'system' | 'lemonsqueezy';
   referenceId?: string;
 }
 
@@ -14,60 +14,136 @@ export interface PricingPlan {
   id: string;
   name: string;
   tagline: string;
+  typeLabel?: string;
   credits: number;
   priceUsd: number;
+  netEstimateUsd?: number;
+  unitPriceUsd?: number;
   popular?: boolean;
   savingsPercent?: number;
   features: string[];
   checkoutUrl?: string;
 }
 
+export interface ConsultingService {
+  id: string;
+  name: string;
+  tagline: string;
+  type: 'subscription' | 'one_time' | 'custom';
+  typeLabel: string;
+  priceUsd: number | null;
+  billingInterval?: string; // 'mes'
+  netEstimateUsd?: number;
+  deliverable: string;
+  features: string[];
+  checkoutUrl?: string;
+  externalLink?: string;
+}
+
 export const INITIAL_WELCOME_CREDITS = 5;
 
+// 1. Paquetes de Créditos para "Faro Biográfico" (Reportes con IA)
 export const PRICING_PLANS: PricingPlan[] = [
   {
     id: 'pack_single',
     name: '1 Reporte de Trayectoria Vital',
     tagline: 'Ideal para autoconocimiento y análisis personal',
+    typeLabel: 'Pago único (One-time purchase)',
     credits: 1,
     priceUsd: 3.99,
+    netEstimateUsd: 3.29,
     features: [
-      '1 Reporte de Análisis Biográfico con IA',
-      'Desglose de Ejes de Crecimiento y Potencial',
-      'Clima del Septenio y Análisis Anual',
-      'Dinámica de Tránsitos Temporales',
-      'Exportación e Impresión en Alta Calidad PDF',
+      '1 Reporte de Análisis Biográfico completo con IA',
+      'Desglose de ejes de crecimiento y potencial evolutivo',
+      'Clima del septenio y dinámica de tránsitos temporales',
+      'Exportación e impresión en PDF de alta calidad',
     ],
   },
   {
     id: 'pack_family',
     name: 'Pack 5 Reportes de Análisis',
-    tagline: 'El más elegido • Para ti y tus seres queridos',
+    tagline: 'Más Popular • Para ti y tus vínculos cercanos',
+    typeLabel: 'Pago único (One-time purchase)',
     credits: 5,
     priceUsd: 14.99,
+    unitPriceUsd: 2.99,
+    netEstimateUsd: 13.74,
     popular: true,
     savingsPercent: 25,
     features: [
-      '5 Reportes de Análisis Biográfico con IA',
-      'Equivale a solo $2.99 por reporte',
-      'Sin fecha de caducidad de créditos',
+      '5 Créditos sin fecha de caducidad',
+      'Equivale a solo $2.99 USD por reporte (Ahorro 25%)',
       'Comparativa de ciclos vitales y tránsitos',
-      'Soporte técnico de cálculo prioritario',
+      'Soporte de cálculo y procesamiento prioritario',
     ],
   },
   {
     id: 'pack_professional',
     name: 'Pack Profesional (15 Reportes)',
     tagline: 'Para facilitadores, biógrafos y consultores',
+    typeLabel: 'Pago único (One-time purchase)',
     credits: 15,
     priceUsd: 29.99,
+    unitPriceUsd: 1.99,
+    netEstimateUsd: 27.99,
     savingsPercent: 50,
     features: [
-      '15 Reportes de Análisis Biográfico con IA',
-      'Equivale a solo $1.99 por reporte',
-      'Ideal para consultas y mentorías profesionales',
-      'Informes ilimitados sin caducidad temporal',
+      '15 Créditos sin caducidad temporal',
+      'Equivale a solo $1.99 USD por reporte (Ahorro 50%)',
       'Licencia de uso para consultoría de desarrollo',
+      'Informes y comparativas para mentorías profesionales',
+    ],
+  },
+];
+
+// 2. Servicios Continuos y Consultoría
+export const CONSULTING_SERVICES: ConsultingService[] = [
+  {
+    id: 'service_faro_diario',
+    name: 'Faro Diario - Suscripción Matutina (OK Google / Audio PWA)',
+    tagline: 'Audio de sincronización vital matutino de 45 segundos',
+    type: 'subscription',
+    typeLabel: 'Suscripción Mensual',
+    priceUsd: 7.99,
+    billingInterval: 'mes',
+    netEstimateUsd: 6.79,
+    deliverable: 'Audio matutino personalizado de 45 seg (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
+    features: [
+      'Audio matutino personalizado de 45 seg generado cada día',
+      'Síntesis activa: Nodo Lunar + Septenio + Nodo Anual + Tránsitos diarios',
+      'Integración para PWA móvil y rutinas de altavoz inteligente / voz',
+      'Suscripción mensual flexible gestionada por Polar.sh (cancela cuando desees)',
+    ],
+  },
+  {
+    id: 'service_rectificacion',
+    name: 'Rectificación Biográfica de Carta Natal (Artesanal)',
+    tagline: 'Auditoría astronómica y verificación biográfica manual',
+    type: 'one_time',
+    typeLabel: 'Pago único (One-time purchase)',
+    priceUsd: 80.00,
+    netEstimateUsd: 75.50,
+    deliverable: 'Entrega en 3 días laborables mediante revisión manual con atacires y formulario estructurado',
+    features: [
+      'Revisión manual minuciosa y artesanal con técnica de atacires',
+      'Formulario estructurado de eventos vitales e hitos pasados',
+      'Ajuste y determinación exacta al minuto/segundo de nacimiento',
+      'Entrega en 3 días laborables con informe y efemérides corregidas',
+    ],
+  },
+  {
+    id: 'service_consultas',
+    name: 'Consultas Privadas Individuales',
+    tagline: 'Sesión personalizada 1 a 1 de orientación y desarrollo',
+    type: 'custom',
+    typeLabel: 'Tarifa acordada / Enlace directo Polar.sh',
+    priceUsd: null,
+    deliverable: 'Agenda externa (WhatsApp / Cal.com) con cobro acordado enviado a través de enlace directo de Polar.sh',
+    features: [
+      'Sesión individual personalizada 1 a 1 (60 - 90 min)',
+      'Profundización en septenios, crisis evolutivas y dirección vocacional',
+      'Coordinación directa de calendario vía WhatsApp / Cal.com',
+      'Cobro seguro y flexible con enlace personalizado emitido en Polar.sh',
     ],
   },
 ];
@@ -170,7 +246,7 @@ export function addCredits(
   amount: number,
   description: string,
   type: 'purchase' | 'voucher' | 'initial' = 'purchase',
-  provider: 'lemonsqueezy' | 'voucher' | 'system' = 'purchase' === type ? 'lemonsqueezy' : 'system',
+  provider: 'polar' | 'voucher' | 'system' | 'lemonsqueezy' = 'purchase' === type ? 'polar' : 'system',
   referenceId?: string
 ): number {
   const current = getCreditBalance();

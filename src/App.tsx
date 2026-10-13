@@ -11,7 +11,8 @@ import { TransitsPanel } from './components/TransitsPanel';
 import { DeepSynthesisCard } from './components/DeepSynthesisCard';
 import { PlanetaryTable } from './components/PlanetaryTable';
 import { CreditModal } from './components/CreditModal';
-import { getCreditBalance, subscribeToCredits } from './utils/creditManager';
+import { LegalModal, LegalTab } from './components/LegalModal';
+import { getCreditBalance, subscribeToCredits, addCredits } from './utils/creditManager';
 import {
   TableProperties,
   Compass,
@@ -24,6 +25,8 @@ import {
   Calendar,
   Globe2,
   ArrowRight,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 const DEFAULT_BIRTH_DATA: BirthData = {
@@ -45,6 +48,98 @@ export default function App() {
   const [isSwissPrecision, setIsSwissPrecision] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(() => getCreditBalance());
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<LegalTab>('terms');
+  const [paymentNotice, setPaymentNotice] = useState<{
+    type: 'success' | 'cancelled';
+    title: string;
+    message: string;
+    creditsAdded?: number;
+  } | null>(null);
+
+  const openLegalModal = (tab: LegalTab = 'terms') => {
+    setLegalModalTab(tab);
+    setIsLegalModalOpen(true);
+  };
+
+  // Detect Polar.sh return / success redirect in URL params
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment') || params.get('status');
+    const checkoutId = params.get('checkout_id') || params.get('id') || params.get('session_id');
+    const plan = params.get('plan');
+    const service = params.get('service');
+
+    if (paymentStatus === 'success' || params.has('polar_success')) {
+      const processedKey = `polar_processed_${checkoutId || 'success_tx'}`;
+      const alreadyProcessed = checkoutId ? sessionStorage.getItem(processedKey) : null;
+
+      let added = 0;
+      let title = '¡Pago Procesado con Éxito!';
+      let message = 'Tu transacción a través de Polar.sh se ha completado correctamente.';
+
+      if (!alreadyProcessed) {
+        if (plan === 'pack_single' || plan === 'single') {
+          added = 1;
+          addCredits(1, 'Compra 1 Reporte de Trayectoria Vital vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          message = 'Se ha acreditado 1 informe de Trayectoria Vital a tu monedero.';
+        } else if (plan === 'pack5') {
+          added = 5;
+          addCredits(5, 'Compra Pack 5 Reportes de Análisis vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          message = 'Se han acreditado 5 créditos para informes con IA a tu monedero.';
+        } else if (plan === 'pack15') {
+          added = 15;
+          addCredits(15, 'Compra Pack Profesional (15 Reportes) vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          message = 'Se han acreditado 15 créditos profesionales con licencia de uso a tu monedero.';
+        } else if (service === 'faro_diario') {
+          title = '¡Suscripción a Faro Diario Activada!';
+          message = 'Tu suscripción mensual a los audios matutinos personalizados de 45 segundos ha sido confirmada vía Polar.sh.';
+        } else if (service === 'rectificacion') {
+          title = '¡Solicitud de Rectificación Recibida!';
+          message = 'Tu orden de Rectificación Biográfica ha sido recibida con éxito. El equipo iniciará la revisión con atacires en breve.';
+        } else {
+          message = 'Tu pago vía Polar.sh ha sido verificado. Tus créditos están disponibles en tu cuenta.';
+        }
+
+        if (checkoutId) {
+          try {
+            sessionStorage.setItem(processedKey, 'true');
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+
+      setPaymentNotice({
+        type: 'success',
+        title,
+        message,
+        creditsAdded: added > 0 ? added : undefined,
+      });
+
+      // Clean query params from the browser bar cleanly
+      try {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      } catch (e) {
+        // ignore
+      }
+    } else if (paymentStatus === 'cancelled' || paymentStatus === 'cancel') {
+      setPaymentNotice({
+        type: 'cancelled',
+        title: 'Proceso de Pago Cancelado',
+        message: 'Has vuelto a Faro Biográfico sin completar el pago. No se realizó ningún cargo a tu tarjeta de crédito o débito.',
+      });
+
+      try {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
 
   // Subscribe to credit balance changes
   useEffect(() => {
@@ -107,6 +202,7 @@ export default function App() {
         hasCalculated={true}
         creditBalance={creditBalance}
         onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+        onOpenLegal={() => openLegalModal('terms')}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -441,20 +537,129 @@ export default function App() {
         isOpen={isCreditModalOpen}
         onClose={() => setIsCreditModalOpen(false)}
         onCreditsUpdated={(newBal) => setCreditBalance(newBal)}
+        onOpenLegal={openLegalModal}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-stone-800 bg-stone-900/50 py-6 text-center text-xs text-stone-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>
-            Faro Biográfico • Cálculos astronómicos, cronología de septenios y análisis temporal en tiempo real
-          </p>
-          <div className="flex items-center gap-4 text-stone-400">
-            <span>Rudolf Steiner</span>
-            <span>•</span>
-            <span>Bernard Lievegoed</span>
-            <span>•</span>
-            <span>Astrología Humanista</span>
+      {/* Modal de Centro Legal, Términos y Cumplimiento (Compliance / MoR) */}
+      <LegalModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
+
+      {/* Modal / Toast de Notificación de Pago de Polar.sh */}
+      {paymentNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <div className="flex items-start gap-4">
+              <div
+                className={`p-3 rounded-xl shrink-0 ${
+                  paymentNotice.type === 'success'
+                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                    : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
+                }`}
+              >
+                {paymentNotice.type === 'success' ? (
+                  <CheckCircle2 className="w-6 h-6" />
+                ) : (
+                  <AlertCircle className="w-6 h-6" />
+                )}
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <h3 className="font-serif font-bold text-lg text-stone-100">
+                  {paymentNotice.title}
+                </h3>
+                <p className="text-sm text-stone-300 leading-relaxed">
+                  {paymentNotice.message}
+                </p>
+                {paymentNotice.creditsAdded && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mt-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    +{paymentNotice.creditsAdded} Créditos Acreditados
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentNotice(null)}
+                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-medium text-sm transition-colors text-center shadow-lg shadow-amber-500/20"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer con información de cumplimiento y enlaces legales exigidos por Polar.sh */}
+      <footer className="border-t border-stone-800 bg-stone-900/70 py-8 text-xs text-stone-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <span className="font-serif font-bold text-stone-200 text-sm block">
+                Faro Biográfico • Plataforma SaaS de Análisis de Desarrollo Personal
+              </span>
+              <p className="text-stone-400 text-[11px] mt-0.5 max-w-xl">
+                Cálculos astronómicos de alta precisión, cronología de septenios (Steiner &amp; Lievegoed) e informes automatizados asistidos por IA. Herramienta de auto-observación y consultoría.
+              </p>
+            </div>
+
+            {/* Enlaces legales obligatorios para aprobación de pasarela */}
+            <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-4 gap-y-2 text-stone-300 text-xs">
+              <button
+                type="button"
+                onClick={() => openLegalModal('terms')}
+                className="hover:text-purple-300 transition-colors cursor-pointer"
+              >
+                Términos de Servicio
+              </button>
+              <span className="text-stone-700">•</span>
+              <button
+                type="button"
+                onClick={() => openLegalModal('refund')}
+                className="hover:text-emerald-300 transition-colors cursor-pointer"
+              >
+                Política de Reembolso
+              </button>
+              <span className="text-stone-700">•</span>
+              <button
+                type="button"
+                onClick={() => openLegalModal('privacy')}
+                className="hover:text-blue-300 transition-colors cursor-pointer"
+              >
+                Privacidad y Datos
+              </button>
+              <span className="text-stone-700">•</span>
+              <button
+                type="button"
+                onClick={() => openLegalModal('compliance')}
+                className="hover:text-amber-300 transition-colors cursor-pointer"
+              >
+                Aviso Legal &amp; Compliance
+              </button>
+              <span className="text-stone-700">•</span>
+              <button
+                type="button"
+                onClick={() => openLegalModal('polar_guide')}
+                className="text-blue-400 hover:text-blue-300 underline font-medium transition-colors cursor-pointer"
+              >
+                Guía Polar.sh
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-stone-800/80 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-stone-500">
+            <div>
+              © {new Date().getFullYear()} Faro Biográfico. Pagos seguros, facturación global e impuestos gestionados por <strong className="text-stone-400">Polar Software Inc. (Merchant of Record)</strong>.
+            </div>
+            <div className="flex items-center gap-3 text-stone-400">
+              <span>Soporte: rodriguezb.jl@gmail.com</span>
+              <span>•</span>
+              <span>Moneda: USD</span>
+            </div>
           </div>
         </div>
       </footer>
