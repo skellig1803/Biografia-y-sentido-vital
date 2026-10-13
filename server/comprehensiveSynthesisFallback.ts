@@ -14,7 +14,12 @@ export interface SynthesisFallbackInput {
   nodalAxisCode?: string;
   profectionCode?: string;
   natalAspectCodes?: string[];
+  natalPlanetsSummary?: string;
+  transitHouseActivations?: string[];
   transitCodes?: string[];
+  transitDetailedList?: string[];
+  currentSkyPositions?: string;
+  todayDate?: string;
 }
 
 export function generateGuaranteedCompleteSynthesis(input: SynthesisFallbackInput): string {
@@ -29,9 +34,40 @@ export function generateGuaranteedCompleteSynthesis(input: SynthesisFallbackInpu
   const aspects = (input.natalAspectCodes && input.natalAspectCodes.length > 0)
     ? input.natalAspectCodes.slice(0, 5).join(', ')
     : 'Configuraciones armónicas y retos de integración natal';
-  const transits = (input.transitCodes && input.transitCodes.length > 0)
-    ? input.transitCodes.slice(0, 5).join(', ')
-    : 'Corrientes celestes en tránsito activo';
+
+  // Evaluate celestial tone without ever naming transits or technical aspect jargon
+  const rawContext = [
+    ...(input.transitDetailedList || []),
+    ...(input.transitCodes || []),
+    ...(input.transitHouseActivations || []),
+    ...(input.natalAspectCodes || []),
+  ].join(' ').toLowerCase();
+
+  const isHighEnergy =
+    rawContext.includes('cuadratura') ||
+    rawContext.includes('oposición') ||
+    rawContext.includes('oposicion') ||
+    rawContext.includes('marte') ||
+    rawContext.includes('saturno') ||
+    rawContext.includes('plutón') ||
+    rawContext.includes('pluton') ||
+    rawContext.includes('urano');
+
+  const colloquialDailyMeaning = isHighEnergy
+    ? `Para tu jornada de hoy (en sintonía con tu **Sol en ${sun}**, **Luna en ${moon}** y **Ascendente en ${asc}**), el ambiente general se siente dinámico, exigente y de ritmo acelerado:
+
+**Beneficios en tus actividades diarias:** Cuentas con un empuje adicional para acometer tareas complejas que venías postergando, tomar decisiones laborales con firmeza y resolver imprevistos con agilidad práctica. Si focalizas esta energía en una sola prioridad a la vez, tu productividad será notable.
+
+**Posibles conflictos:** El principal riesgo es la impaciencia, la prisa al contestar mensajes o la susceptibilidad en intercambios con colegas o familiares. Si percibes tensión o demoras ajenas, evita forzar resultados en caliente.
+
+**Consejo práctico:** Respira antes de reaccionar, mantén la calma en tus rutinas y convierte cualquier roce en un ejercicio de templanza.`
+    : `Para tu jornada de hoy (en sintonía con tu **Sol en ${sun}**, **Luna en ${moon}** y **Ascendente en ${asc}**), el ambiente general se percibe fluido, sereno y propicio para el entendimiento:
+
+**Beneficios en tus actividades diarias:** Es un momento óptimo para dialogar, coordinar acuerdos, avanzar en proyectos creativos y afianzar la cooperación con compañeros o seres queridos. Tu juicio se encuentra despejado para organizar tu agenda con armonía y eficacia.
+
+**Posibles conflictos:** El desafío radica en la dispersión o en postergar tareas que exigen rigor por quedarte en detalles amenos pero secundarios. Cuida no comprometerte con más solicitudes de las que puedes gestionar hoy con holgura.
+
+**Consejo práctico:** Aprovecha la buena receptividad del entorno para cerrar conversaciones pendientes, manteniendo un ritmo constante sin sobrecargarte.`;
 
   return `## 1. La Esencia Biográfica y el Reto del Septenio Presente
 
@@ -63,16 +99,7 @@ Durante este período, se sugiere observar con atención las dinámicas vinculad
 
 ---
 
-## 4. Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente
+## 4. Cualidad del Día: Beneficios y Posibles Conflictos en tus Actividades Diarias
 
-El cielo nunca está estático: los planetas continúan su danza viva sobre las posiciones exactas de tu nacimiento. En la actualidad, destacan los siguientes movimientos: **${transits}**.
-
-En la visión antroposófica, los tránsitos celestes no deben ser temidos como decretos fatídicos ni idolotrados pasivamente. Son 'climas anímicos' que despiertan fuerzas durmientes en tu organización interior:
-- Aquellos tránsitos que plantean tensión o cuadratura funcionan como **umbrales de fuego**, exigiéndote disciplina, límites saludables y verdad interior.
-- Aquellos que ofrecen trígonos y sextiles aportan **gracia y fluidez**, abriendo puertas para la cooperación, la inspiración artística y el arraigo de proyectos nobles.
-
-**Síntesis y Práctica para la Vida Cotidiana:**
-1. **Atención al ritmo:** Dedica unos minutos al comenzar y finalizar el día para tomar distancia serena de las urgencias exteriores y recordar tu hilo biográfico conductor.
-2. **Confianza en el devenir:** Reconoce que cada año y cada prueba de tu septenio actual tienen un propósito amoroso de forja espiritual.
-3. **Acción consciente:** Permite que la luz de tu **Sol en ${sun}** guíe tus pasos, sosteniendo con nobleza y entusiasmo la hermosa obra de arte viva que es tu propia biografía.`;
+${colloquialDailyMeaning}`;
 }

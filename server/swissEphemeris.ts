@@ -23,10 +23,17 @@ import { calculateHistoricalTimezoneOffset } from '../src/data/cities';
 import { calculateCompleteChart } from '../src/utils/calculator';
 
 // Safely load Swiss Ephemeris native module if available
-const nodeRequire = createRequire(import.meta.url);
 let sweph: any = null;
 try {
-  sweph = nodeRequire('sweph');
+  const dynamicRequire =
+    typeof require === 'function'
+      ? require
+      : createRequire(
+          typeof import.meta !== 'undefined' && import.meta?.url
+            ? import.meta.url
+            : `file://${process.cwd()}/server.js`
+        );
+  sweph = dynamicRequire('sweph');
   const ephePath = path.resolve(process.cwd(), 'ephe');
   if (sweph && fs.existsSync(ephePath)) {
     sweph.set_ephe_path(ephePath);

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -11,7 +12,7 @@ import { upsertBiografia, getUserById } from '../lib/db.js';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '5mb' }));
 
@@ -364,8 +365,16 @@ function isReadingComplete(text: string, finishReason?: string): { complete: boo
 
   const hasSec1 = clean.includes('1.') || clean.includes('Esencia Biográfica');
   const hasSec2 = clean.includes('2.') || clean.includes('Brújula') || clean.includes('Brujula');
-  const hasSec3 = clean.includes('3.') || clean.includes('Clima Vital');
-  const hasSec4 = clean.includes('4.') || clean.includes('Alquimia') || clean.includes('Tránsitos') || clean.includes('Transitos');
+  const hasSec3 = clean.includes('3.') || clean.includes('Clima Vital') || clean.includes('Año de Vida');
+  const hasSec4 =
+    clean.includes('4.') ||
+    clean.includes('Cualidad') ||
+    clean.includes('Beneficios') ||
+    clean.includes('Clima Diario') ||
+    clean.includes('Alquimia') ||
+    clean.includes('Tránsitos') ||
+    clean.includes('Transitos') ||
+    clean.includes('Cápsula de Audio');
 
   if (!hasSec1 || !hasSec2 || !hasSec3 || !hasSec4) {
     return { complete: false, reason: 'Falta alguna de las 4 secciones estructurales' };
@@ -485,7 +494,12 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
       nodalAxisCode,
       profectionCode,
       natalAspectCodes,
+      natalPlanetsSummary,
+      transitHouseActivations,
       transitCodes,
+      transitDetailedList,
+      currentSkyPositions,
+      todayDate,
       currentSeptenio,
       lunarNodes,
       yearOfLife,
@@ -520,8 +534,10 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
         ? aspects.slice(0, 6).map((a: any) => `${a.planet1?.name || ''} ${a.symbol || ''} ${a.planet2?.name || ''} (${(a.orb ?? 0).toFixed?.(1) || 0}°)`).join('; ')
         : 'Aspectos natales calculados';
 
-    const transitsStr =
-      Array.isArray(transitCodes) && transitCodes.length > 0
+    const detailedTransitsStr =
+      Array.isArray(transitDetailedList) && transitDetailedList.length > 0
+        ? transitDetailedList.join('\n')
+        : Array.isArray(transitCodes) && transitCodes.length > 0
         ? transitCodes.slice(0, 5).join('; ')
         : Array.isArray(activeTransits) && activeTransits.length > 0
         ? activeTransits.slice(0, 5).map((t: any) => `Tr-${t.transitPlanet?.name || t.name} -> Nat-${t.natalPlanet?.name || ''} (${(t.orb ?? 0).toFixed?.(1) || 0}°)`).join('; ')
@@ -537,7 +553,12 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
       nodalAxisCode: nodesStr,
       profectionCode: profectionStr,
       natalAspectCodes: Array.isArray(natalAspectCodes) ? natalAspectCodes : undefined,
+      natalPlanetsSummary,
+      transitHouseActivations: Array.isArray(transitHouseActivations) ? transitHouseActivations : undefined,
       transitCodes: Array.isArray(transitCodes) ? transitCodes : undefined,
+      transitDetailedList: Array.isArray(transitDetailedList) ? transitDetailedList : undefined,
+      currentSkyPositions,
+      todayDate,
     };
 
     const ai = getGeminiClient();
@@ -555,27 +576,44 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
       : '';
 
     const systemInstruction = `Eres un sabio biógrafo antroposófico (siguiendo las enseñanzas de Rudolf Steiner y Bernard Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales, cálidos y transformadores.
-REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exhaustiva cada una de las 4 secciones solicitadas sin dejar ideas truncadas ni oraciones a medias. Cada sección debe tener un desarrollo fluido y una conclusión clara en Markdown bien estructurado (títulos ##, párrafos articulados, negritas para conceptos esenciales).`;
+REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exhaustiva cada una de las 4 secciones solicitadas sin dejar ideas truncadas ni oraciones a medias en Markdown bien estructurado.
+
+DIRECTRICES POR SECCIÓN:
+- Secciones 1, 2 y 3: Desarrolla el análisis biográfico con profundidad antroposófica, abordando el septenio presente, el eje nodal evolutivo y el clima del año de vida con riqueza vivencial.
+- SECCIÓN 4 (REGLA MANDATORIA): "## 4. Cualidad del Día: Beneficios y Posibles Conflictos en tus Actividades Diarias":
+  1. NO MENCIONES LOS TRÁNSITOS: Queda terminantemente prohibido usar la palabra "tránsito", "tránsitos" o tecnicismos astronómicos de aspectos (no hables de conjunciones, cuadraturas, trígonos ni de planetas transitando).
+  2. CUALIDAD DEL DÍA: Traduce la configuración celeste activa de hoy en la cualidad anímica, mental y energética de la jornada para ${name || 'el consultante'} (considerando su Sol en ${sunSign || 'su signo'}, Luna en ${moonSign || 'su luna'} y Ascendente en ${ascendantSign || 'su ascendente'}).
+  3. BENEFICIOS EN ACTIVIDADES DIARIAS: Detalla con total claridad qué beneficios, facilidades y oportunidades favorables se presentan hoy en sus actividades cotidianas (comunicación, decisiones laborales, concentración, creatividad o resolución de tareas).
+  4. POSIBLES CONFLICTOS EN ACTIVIDADES DIARIAS: Advierte sobre los posibles conflictos, riesgos de fricción o tropiezos que pueden surgir en su día a día (impulsividad al responder, dispersión, impaciencia ante imprevistos, malentendidos o rigidez) y cómo modularlos con serenidad.
+  5. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, ameno y reflexivo, como una charla con un mentor de confianza. Extensión de 1 minuto de lectura máximo (aproximadamente 120-150 palabras), en prosa fluida y aterrizada. Sin viñetas mecánicas, sin jerga matemática y sin menciones a audio o micrófonos.`;
 
     const prompt = `Consultante: ${name || 'Consultante'} (${exactAgeFormatted || 'Edad actual'}).
-Luminarias/ASC: Sol en ${sunSign || 'N/A'}, Luna en ${moonSign || 'N/A'}, Ascendente en ${ascendantSign || 'N/A'}.
-Septenio: ${septenioStr}.
-Nodos Lunares: ${nodesStr}.
-Profección anual: ${profectionStr}.
-Aspectos natales clave: ${aspectsStr}.
-Tránsitos celestes activos: ${transitsStr}.${regenNote}
+Carta natal individual:
+- Sol en ${sunSign || 'N/A'}, Luna en ${moonSign || 'N/A'}, Ascendente en ${ascendantSign || 'N/A'}.
+${natalPlanetsSummary ? `- Posiciones natales clave: ${natalPlanetsSummary}.` : ''}
+- Septenio: ${septenioStr}.
+- Nodos Lunares: ${nodesStr}.
+- Profección anual: ${profectionStr}.
+- Aspectos natales destacados: ${aspectsStr}.
 
-Escribe una guía biográfica completa y de alta calidad abarcando obligatoriamente estas 4 secciones numeradas de principio a fin, cerrando la sección 4 con una síntesis práctica para la vida cotidiana:
+Configuración celeste activa de hoy (para que extraigas la cualidad del día aplicada a sus actividades diarias):
+${transitHouseActivations && Array.isArray(transitHouseActivations) && transitHouseActivations.length > 0 ? `Áreas vitales tocadas hoy:\n${transitHouseActivations.join('\n')}\n` : ''}
+Activaciones e influjos de hoy sobre su mapa:
+${detailedTransitsStr}
+${currentSkyPositions ? `Posiciones del cielo de hoy: ${currentSkyPositions}.` : ''}${regenNote}
+
+Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones numeradas de principio a fin:
 ## 1. La Esencia Biográfica y el Reto del Septenio Presente
 ## 2. La Brújula del Alma: El Eje de los Nodos Lunares
 ## 3. El Clima Vital del Año de Vida Actual
-## 4. Alquimia de los Tránsitos: Mensaje de los Cielos para el Presente`;
+## 4. Cualidad del Día: Beneficios y Posibles Conflictos en tus Actividades Diarias
 
-    // Production-ready Gemini models supported by Google GenAI with rapid response
+(INSTRUCCIÓN OBLIGATORIA PARA LA SECCIÓN 4: No menciones la palabra "tránsito" ni aspectos técnicos. Enfoca el texto exclusivamente en dar la cualidad del día para sus actividades diarias, mencionando los beneficios y los posibles conflictos que puede presentar la jornada, con una actitud práctica serena. Máximo 1 minuto de lectura / 120-150 palabras).`;
+
+    // Production-ready Gemini models supported by Google GenAI (gemini-3.8-flash is latest standard)
     const modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
+      'gemini-3.8-flash',
+      'gemini-3.1-flash-lite',
     ];
     let readingText = '';
     let lastFailureReason = '';
@@ -583,19 +621,18 @@ Escribe una guía biográfica completa y de alta calidad abarcando obligatoriame
     for (const modelName of modelsToTry) {
       try {
         console.log(`[Synthesis] Intentando con modelo: ${modelName}`);
-        // Keep timeout within Vercel's Serverless Function ceiling (8.5s)
         const response = await withTimeout(
           ai.models.generateContent({
             model: modelName,
             contents: prompt,
             config: {
               systemInstruction,
-              temperature: isRegeneration ? 0.85 : 0.72,
+              temperature: isRegeneration ? 0.82 : 0.70,
               maxOutputTokens: 8192,
             },
           }),
-          8500,
-          `Timeout de 8.5s excedido en ${modelName}`
+          25000,
+          `Timeout de 25s excedido en ${modelName}`
         );
 
         const text = response.text || '';
@@ -645,19 +682,29 @@ Escribe una guía biográfica completa y de alta calidad abarcando obligatoriame
 
 // Setup Vite middleware in dev or static files in production
 export async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
+  const hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
+
+  if (process.env.NODE_ENV === 'production' || hasStaticDist) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  } else {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.warn('Vite middleware could not be loaded, falling back to static files:', err);
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
   app.listen(PORT, '0.0.0.0', () => {

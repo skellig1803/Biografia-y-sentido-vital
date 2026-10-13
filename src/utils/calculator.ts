@@ -74,7 +74,7 @@ export function calculateCompleteChart(birthData: BirthData): NatalChartCalculat
   const ascendantPlanet = planets.find((p) => p.id === 'ascendant') || planets[0];
   const yearOfLife = calculateYearOfLifeAnalysis(exactAge.years, ascendantPlanet.sign, planets, houses);
 
-  const currentTransits = calculateCurrentTransits(planets, new Date());
+  const currentTransits = calculateCurrentTransits(planets, new Date(), houses);
 
   return {
     birthData,

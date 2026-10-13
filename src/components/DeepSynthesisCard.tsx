@@ -100,13 +100,54 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         sextile: '⚹',
       };
 
-      // Extract compact transit codes (e.g., "Tr-Saturno □ Nat-Sol (1.1°)")
-      const transitCodes = (calculation.currentTransits?.activeTransits || [])
+      const aspectSpanish: Record<string, string> = {
+        conjunction: 'conjunción exacta',
+        opposition: 'oposición directa',
+        trine: 'trígono armónico',
+        square: 'cuadratura desafiante',
+        sextile: 'sextil favorable',
+      };
+
+      // Extract specific user transits with rich detail
+      const activeTransits = calculation.currentTransits?.activeTransits || [];
+      const transitDetailedList = activeTransits.slice(0, 6).map((t) => {
+        const aspectLabel = aspectSpanish[t.aspectType] || t.aspectType;
+        const trPlanet = t.transitPlanet?.name || 'Planeta';
+        const trSign = t.transitPlanet?.sign ? `en ${t.transitPlanet.sign}` : '';
+        const natPlanet = t.natalPlanet?.name || 'Punto';
+        const natSign = t.natalPlanet?.sign ? `en ${t.natalPlanet.sign}` : '';
+        const natHouse = t.natalPlanet?.house ? `(en tu Casa ${t.natalPlanet.house} natal)` : '';
+        const impact = t.biographicalImpact || t.practicalTip || t.simpleExplanation || '';
+        return `• ${trPlanet} ${trSign} en ${aspectLabel} a tu ${natPlanet} natal ${natSign} ${natHouse}. Dinámica: ${impact}`;
+      });
+
+      // Extract transit house activations in user's natal chart
+      const transitHouseActivations = (calculation.currentTransits?.transitPlanets || [])
+        .filter((tp) => tp.house)
+        .slice(0, 6)
+        .map((tp) => {
+          const houseTheme = calculation.houses.find((h) => h.house === tp.house)?.theme || 'área vital';
+          return `${tp.name} transita hoy por tu Casa ${tp.house} natal (${houseTheme})`;
+        });
+
+      // Summary of consultant's individual natal chart
+      const natalPlanetsSummary = calculation.planets
+        .slice(0, 10)
+        .map((p) => `${p.name} en ${p.sign}${p.house ? ` (Casa ${p.house})` : ''}`)
+        .join(', ');
+
+      // Extract compact transit codes (fallback)
+      const transitCodes = activeTransits
         .slice(0, 5)
         .map((t) => {
           const sym = aspectSymbols[t.aspectType] || '☌';
           return `Tr-${t.transitPlanet.name} ${sym} Nat-${t.natalPlanet.name} (${t.orb.toFixed(1)}°)`;
         });
+
+      const currentSkyPositions = (calculation.currentTransits?.transitPlanets || [])
+        .slice(0, 7)
+        .map((p) => `${p.name} en ${p.sign}`)
+        .join(', ');
 
       const septenioCode = `${calculation.currentSeptenio.number}° Septenio (${calculation.currentSeptenio.ageRange}), ${calculation.currentSeptenio.archetypalTitle} [${calculation.currentSeptenio.phase} / ${calculation.currentSeptenio.planetarySphere}]`;
 
@@ -131,7 +172,12 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
           nodalAxisCode,
           profectionCode,
           natalAspectCodes,
+          natalPlanetsSummary,
+          transitHouseActivations,
           transitCodes,
+          transitDetailedList,
+          currentSkyPositions,
+          todayDate: calculation.currentTransits?.transitDate,
           isRegeneration: Boolean(aiReading),
           regenerationCount: regenerationCount + 1,
         }),
@@ -309,7 +355,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
                 Lectura Integral Antroposófica
               </h3>
               <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed">
-                Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y el clima astrológico de tránsitos en tiempo real.
+                Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y la cualidad del día con sus beneficios y posibles conflictos en tus actividades cotidianas.
               </p>
             </div>
 
@@ -380,7 +426,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
               </span>
             </div>
             <div className="text-[11px] text-stone-500 hidden sm:block">
-              Formato Markdown Enriquecido
+              Formato Markdown Enriquecido • Trayectoria y Clima Diario
             </div>
           </div>
 

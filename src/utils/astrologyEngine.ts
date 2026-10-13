@@ -520,13 +520,14 @@ function generateAspectInterpretation(
 // Calculate active transits of current sky to natal planets
 export function calculateCurrentTransits(
   natalPlanets: PlanetPosition[],
-  currentDate: Date = new Date()
+  currentDate: Date = new Date(),
+  cusps?: HouseCusp[]
 ): { transitPlanets: PlanetPosition[]; activeTransits: TransitAspect[] } {
   // Calculate planetary positions for transit date at 12:00 UTC
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
   const day = currentDate.getDate();
-  const { planets: transitPlanets } = calculatePlanetaryPositions(
+  const { planets: rawTransitPlanets } = calculatePlanetaryPositions(
     year,
     month,
     day,
@@ -537,6 +538,14 @@ export function calculateCurrentTransits(
     0
   );
 
+  const transitPlanets = rawTransitPlanets.map((tp) => {
+    const house = cusps && cusps.length > 0 ? getPlacidusHouse(tp.longitude, cusps) : undefined;
+    return {
+      ...tp,
+      house,
+    };
+  });
+
   const activeTransits: TransitAspect[] = [];
   const aspectDefs = [
     { type: 'conjunction' as const, name: 'Conjunción', angle: 0, orbLimit: 4.5, nature: 'neutral' as const },
@@ -546,9 +555,9 @@ export function calculateCurrentTransits(
     { type: 'sextile' as const, name: 'Sextil', angle: 60, orbLimit: 3.5, nature: 'harmonious' as const },
   ];
 
-  // Prioritize transits from outer/transpersonal planets to personal natal planets (Sun, Moon, Mercury, Venus, Mars, ASC, MC, Saturn, Jupiter)
-  const significantTransits = ['pluto', 'neptune', 'uranus', 'saturn', 'jupiter', 'mars', 'northNode'];
-  const significantNatal = ['sun', 'moon', 'ascendant', 'midheaven', 'saturn', 'venus', 'mercury', 'mars', 'northNode'];
+  // Include personal and transpersonal planets for accurate daily celestial dynamics
+  const significantTransits = ['pluto', 'neptune', 'uranus', 'saturn', 'jupiter', 'mars', 'sun', 'moon', 'mercury', 'venus', 'northNode'];
+  const significantNatal = ['sun', 'moon', 'ascendant', 'midheaven', 'saturn', 'venus', 'mercury', 'mars', 'jupiter', 'uranus', 'neptune', 'pluto', 'northNode'];
 
   for (const tPlanet of transitPlanets) {
     if (!significantTransits.includes(tPlanet.id)) continue;
@@ -562,7 +571,7 @@ export function calculateCurrentTransits(
       for (const def of aspectDefs) {
         const orb = Math.abs(diff - def.angle);
         if (orb <= def.orbLimit) {
-          const isMajor = ['saturn', 'uranus', 'neptune', 'pluto'].includes(tPlanet.id);
+          const isMajor = ['saturn', 'uranus', 'neptune', 'pluto', 'jupiter', 'mars'].includes(tPlanet.id);
           const impact = generateTransitImpact(tPlanet, nPlanet, def.name, def.nature);
 
           const details = getTransitExplanation({
@@ -616,23 +625,40 @@ function generateTransitImpact(
   aspectName: string,
   nature: 'harmonious' | 'challenging' | 'neutral'
 ): string {
-  if (transitP.id === 'saturn') {
-    return `Saturno demanda rigor, realismo y asunción de madurez consciente. Pone a prueba la autenticidad de tu ${natalP.name} para purgar lo superfluo y construir cimientos duraderos.`;
+  const houseContext = natalP.house ? ` (en tu Casa ${natalP.house} natal)` : '';
+
+  if (transitP.id === 'sun') {
+    return `El Sol en tránsito ilumina y dinamiza tu ${natalP.name}${houseContext}, aportando vitalidad consciente, foco claro y necesidad de expresión personal auténtica.`;
   }
-  if (transitP.id === 'uranus') {
-    return `Urano rompe rigideces y patrones caducos en torno a tu ${natalP.name}. Trae despertares repentinos, necesidad de autenticidad e impulsos de libertad biográfica.`;
+  if (transitP.id === 'moon') {
+    return `La Luna en tránsito sensibiliza tu ${natalP.name}${houseContext}, despertando receptividad anímica, intuición y cambios en el estado de ánimo diario.`;
   }
-  if (transitP.id === 'neptune') {
-    return `Neptuno disuelve las fronteras del ego e inspira un anhelo de entrega trascendente. Exige afinar la intuición para no caer en espejismos con respecto a tu ${natalP.name}.`;
+  if (transitP.id === 'mercury') {
+    return `Mercurio en tránsito agiliza tu ${natalP.name}${houseContext}, facilitando conversaciones, claridad mental y rapidez para resolver temas prácticos.`;
   }
-  if (transitP.id === 'pluto') {
-    return `Plutón impulsa una profunda metamorfosis celular y anímica. Muerte simbólica de viejas identidades vinculadas a tu ${natalP.name} para renacer con poder interior.`;
+  if (transitP.id === 'venus') {
+    return `Venus en tránsito armoniza tu ${natalP.name}${houseContext}, favoreciendo acuerdos, diplomacia, calidez en los vínculos y valoración de tus talentos.`;
+  }
+  if (transitP.id === 'mars') {
+    return `Marte en tránsito enciende el impulso de tu ${natalP.name}${houseContext}, aportando empuje y determinación, invitándote a canalizar la prisa con templanza.`;
   }
   if (transitP.id === 'jupiter') {
-    return `Júpiter aporta confianza, perspectiva expandida y oportunidades benéficas para hacer crecer el potencial de tu ${natalP.name} en tu año de vida.`;
+    return `Júpiter aporta confianza, perspectiva y oportunidades fértiles para expandir la visión de tu ${natalP.name}${houseContext}.`;
+  }
+  if (transitP.id === 'saturn') {
+    return `Saturno demanda orden, realismo y madurez consciente sobre tu ${natalP.name}${houseContext}, llamándote a depurar lo prescindible y consolidar bases firmes.`;
+  }
+  if (transitP.id === 'uranus') {
+    return `Urano sacude patrones rígidos en torno a tu ${natalP.name}${houseContext}, trayendo despertares repentinos, necesidad de innovación y aire fresco.`;
+  }
+  if (transitP.id === 'neptune') {
+    return `Neptuno afina la intuición y sensibilidad sutil de tu ${natalP.name}${houseContext}, demandando discernimiento para no caer en idealizaciones o fatiga.`;
+  }
+  if (transitP.id === 'pluto') {
+    return `Plutón impulsa una regeneración profunda sobre tu ${natalP.name}${houseContext}, permitiéndote transformar miedos en genuino poder y autodominio.`;
   }
   if (transitP.id === 'northNode') {
-    return `El Nodo Norte activa tu eje de desarrollo y crecimiento: sincronías y personas clave catalizan el llamado evolutivo de tu ${natalP.name}.`;
+    return `El Nodo Norte activa tu eje de evolución personal: sincronías y decisiones clave catalizan el crecimiento de tu ${natalP.name}${houseContext}.`;
   }
-  return `Tránsito activo de ${transitP.name} sobre tu ${natalP.name}: dinamiza la energía y despierta los temas del septenio actual.`;
+  return `Tránsito activo de ${transitP.name} sobre tu ${natalP.name}${houseContext}: dinamiza la energía y despierta el aprendizaje del día.`;
 }
