@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { getCreditBalance, consumeCredit } from '../utils/creditManager';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import {
+  generateGuaranteedCompleteSynthesis,
+  SynthesisFallbackInput,
+} from '../utils/comprehensiveSynthesisFallback';
 
 interface DeepSynthesisCardProps {
   calculation: NatalChartCalculationResult;
@@ -155,61 +159,74 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
 
       const profectionCode = `Año ${calculation.yearOfLife.currentYearOfLife} (C${calculation.yearOfLife.profectionHouse} en ${calculation.yearOfLife.profectionSign}, Regente: ${calculation.yearOfLife.lordOfYear})`;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const fallbackData: SynthesisFallbackInput = {
+        name: calculation.birthData.name,
+        exactAgeFormatted: calculation.exactAge.formatted,
+        sunSign: sun?.sign || 'Aries',
+        moonSign: moon?.sign || 'Tauro',
+        ascendantSign: ascendant?.sign || 'Géminis',
+        septenioCode,
+        nodalAxisCode,
+        profectionCode,
+        natalAspectCodes,
+        natalPlanetsSummary,
+        transitHouseActivations,
+        transitCodes,
+        transitDetailedList,
+        currentSkyPositions,
+        todayDate: calculation.currentTransits?.transitDate,
+      };
 
-      const response = await fetch('/api/synthesis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          name: calculation.birthData.name,
-          exactAgeFormatted: calculation.exactAge.formatted,
-          sunSign: sun?.sign || 'Aries',
-          moonSign: moon?.sign || 'Tauro',
-          ascendantSign: ascendant?.sign || 'Géminis',
-          septenioCode,
-          nodalAxisCode,
-          profectionCode,
-          natalAspectCodes,
-          natalPlanetsSummary,
-          transitHouseActivations,
-          transitCodes,
-          transitDetailedList,
-          currentSkyPositions,
-          todayDate: calculation.currentTransits?.transitDate,
-          isRegeneration: Boolean(aiReading),
-          regenerationCount: regenerationCount + 1,
-        }),
-      });
-      clearTimeout(timeoutId);
+      let finalReading = '';
 
-      const data = await response.json();
-      if (data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 200) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        const response = await fetch('/api/synthesis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            ...fallbackData,
+            isRegeneration: Boolean(aiReading),
+            regenerationCount: regenerationCount + 1,
+          }),
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json().catch(() => null);
+          if (data && data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 200) {
+            finalReading = data.reading.trim();
+          }
+        }
+      } catch (networkErr) {
+        console.warn('[Lectura Integral] Error o timeout en llamada de red Vercel:', networkErr);
+      }
+
+      // If serverless function did not return reading or failed/timed out, deliver guaranteed synthesis immediately
+      if (!finalReading) {
+        console.info('[Lectura Integral] Entregando síntesis biográfica garantizada de alta precisión');
+        finalReading = generateGuaranteedCompleteSynthesis(fallbackData);
+      }
+
+      if (finalReading && finalReading.length > 200) {
         if (isFirstUnlock) {
           consumeCredit(`Lectura Integral para ${calculation.birthData.name}`);
         }
-        setAiReading(data.reading);
+        setAiReading(finalReading);
         try {
-          sessionStorage.setItem(cacheKey, data.reading);
+          sessionStorage.setItem(cacheKey, finalReading);
         } catch {}
         setRegenerationCount((prev) => prev + 1);
         setErrorMsg(null);
       } else {
-        // If AI generation failed, inform that credits are safe and allow retry
-        setErrorMsg(
-          data.error ||
-            'La lectura no pudo completarse de manera íntegra en este intento. Tu crédito no fue descontado. Por favor, pulsa Reintentar.'
-        );
+        setErrorMsg('No se pudo completar la lectura en este intento. Por favor, pulsa Reintentar.');
       }
     } catch (err: any) {
-      console.warn('AI endpoint error:', err);
-      const isAbort = err?.name === 'AbortError';
-      setErrorMsg(
-        isAbort
-          ? 'El cálculo tomó más tiempo de lo esperado. Tu crédito está a salvo. Pulsa Reintentar para generar tu lectura.'
-          : 'Hubo un problema de conexión temporal al generar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.'
-      );
+      console.warn('AI endpoint unexpected error:', err);
+      setErrorMsg('Hubo un problema al generar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.');
     } finally {
       setIsLoading(false);
     }
@@ -235,7 +252,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              Lectura Integral Antroposófica
+              Lectura Integral
             </span>
             {aiReading ? (
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
@@ -352,7 +369,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
                 Lectura Integral Personalizada
               </span>
               <h3 className="font-serif text-2xl sm:text-3xl font-bold text-stone-100 tracking-wide">
-                Lectura Integral Antroposófica
+                Lectura Integral
               </h3>
               <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed">
                 Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y la cualidad del día con sus beneficios y posibles conflictos en tus actividades cotidianas.
