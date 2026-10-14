@@ -47,6 +47,9 @@ function isReadingComplete(text: string, finishReason?: string): { complete: boo
   const hasSec4 =
     clean.includes('4.') ||
     clean.includes('Cualidad') ||
+    clean.includes('Sinastría') ||
+    clean.includes('Sinastria') ||
+    clean.includes('Cualidad') ||
     clean.includes('Beneficios') ||
     clean.includes('Clima Diario') ||
     clean.includes('Alquimia') ||
@@ -80,6 +83,7 @@ export async function generateSynthesisReading(body: any): Promise<{
     transitHouseActivations,
     transitCodes,
     transitDetailedList,
+    activeTransitsRaw,
     currentSkyPositions,
     todayDate,
     currentSeptenio,
@@ -141,6 +145,7 @@ export async function generateSynthesisReading(body: any): Promise<{
     transitDetailedList: Array.isArray(transitDetailedList) ? transitDetailedList : undefined,
     currentSkyPositions,
     todayDate,
+    activeTransitsRaw: Array.isArray(activeTransitsRaw) ? activeTransitsRaw : undefined,
   };
 
   const ai = getGeminiClient();
@@ -162,12 +167,15 @@ REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exha
 
 DIRECTRICES POR SECCIÓN:
 - Secciones 1, 2 y 3: Desarrolla el análisis biográfico con profundidad antroposófica, abordando el septenio presente, el eje nodal evolutivo y el clima del año de vida con riqueza vivencial.
-- SECCIÓN 4 (REGLA MANDATORIA): "## 4. Cualidad del Día: Beneficios y Posibles Conflictos en tus Actividades Diarias":
-  1. NO MENCIONES LOS TRÁNSITOS: Queda terminantemente prohibido usar la palabra "tránsito", "tránsitos" o tecnicismos astronómicos de aspectos (no hables de conjunciones, cuadraturas, trígonos ni de planetas transitando).
-  2. CUALIDAD DEL DÍA: Traduce la configuración celeste activa de hoy en la cualidad anímica, mental y energética de la jornada para ${name || 'el consultante'} (considerando su Sol en ${sunSign || 'su signo'}, Luna en ${moonSign || 'su luna'} y Ascendente en ${ascendantSign || 'su ascendente'}).
-  3. BENEFICIOS EN ACTIVIDADES DIARIAS: Detalla con total claridad qué beneficios, facilidades y oportunidades favorables se presentan hoy en sus actividades cotidianas (comunicación, decisiones laborales, concentración, creatividad o resolución de tareas).
-  4. POSIBLES CONFLICTOS EN ACTIVIDADES DIARIAS: Advierte sobre los posibles conflictos, riesgos de fricción o tropiezos que pueden surgir en su día a día (impulsividad al responder, dispersión, impaciencia ante imprevistos, malentendidos o rigidez) y cómo modularlos con serenidad.
-  5. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, ameno y reflexivo, como una charla con un mentor de confianza. Extensión de 1 minuto de lectura máximo (aproximadamente 120-150 palabras), en prosa fluida y aterrizada. Sin viñetas mecánicas, sin jerga matemática y sin menciones a audio o micrófonos.`;
+- SECCIÓN 4 (REGLA MANDATORIA): "## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal":
+  1. INTERPRETACIÓN DE SINASTRÍA INDIVIDUAL: Esta sección NO debe ser genérica ni plantilla. Debe interpretar de forma explícita la SINASTRÍA del cielo de hoy sobre la carta natal de ${name}. Toma en cuenta exactamente qué planetas del cielo están contactando a qué planetas natales y activando qué casas de su mapa personal.
+  2. SÍNTESIS APLICADA A SU DÍA: Sintetiza el significado vivencial de esos contactos celestes aplicados a sus actividades diarias:
+     - Qué energías de su carta natal (planetas y casas) se encuentran activadas hoy.
+     - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas derivadas de los contactos armónicos o fluidos de hoy en su carta.
+     - POSIBLES CONFLICTOS: Advierte sobre los posibles roces, riesgos o tensiones derivados de los contactos desafiantes activos hoy en su mapa, y cómo modularlos con serenidad.
+     - CONSEJO PRÁCTICO: Una recomendación clara y aplicable a su jornada.
+  3. DIFERENCIACIÓN TOTAL: Dos personas con configuraciones planetarias distintas DEBEN recibir respuestas en el punto 4 totalmente diferentes. La interpretación debe pertenecer exclusivamente a la sinastría de los tránsitos de hoy con los planetas y casas natales de esta persona.
+  4. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, vivencial y aterrizado (120-170 palabras, aproximadamente 1 minuto de lectura). Sin viñetas mecánicas ni menciones a audio o micrófonos.`;
 
   const prompt = `Consultante: ${name || 'Consultante'} (${exactAgeFormatted || 'Edad actual'}).
 Carta natal individual:
@@ -178,19 +186,19 @@ ${natalPlanetsSummary ? `- Posiciones natales clave: ${natalPlanetsSummary}.` : 
 - Profección anual: ${profectionStr}.
 - Aspectos natales destacados: ${aspectsStr}.
 
-Configuración celeste activa de hoy (para que extraigas la cualidad del día aplicada a sus actividades diarias):
-${transitHouseActivations && Array.isArray(transitHouseActivations) && transitHouseActivations.length > 0 ? `Áreas vitales tocadas hoy:\n${transitHouseActivations.join('\n')}\n` : ''}
-Activaciones e influjos de hoy sobre su mapa:
+Configuración de la SINASTRÍA de los tránsitos de hoy con su carta natal:
+- Contactos celestes activos sobre sus planetas natales:
 ${detailedTransitsStr}
+${transitHouseActivations && Array.isArray(transitHouseActivations) && transitHouseActivations.length > 0 ? `- Áreas natales (casas) activadas hoy por el cielo:\n${transitHouseActivations.join('\n')}\n` : ''}
 ${currentSkyPositions ? `Posiciones del cielo de hoy: ${currentSkyPositions}.` : ''}${regenNote}
 
 Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones numeradas de principio a fin:
 ## 1. La Esencia Biográfica y el Reto del Septenio Presente
 ## 2. La Brújula del Alma: El Eje de los Nodos Lunares
 ## 3. El Clima Vital del Año de Vida Actual
-## 4. Cualidad del Día: Beneficios y Posibles Conflictos en tus Actividades Diarias
+## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal
 
-(INSTRUCCIÓN OBLIGATORIA PARA LA SECCIÓN 4: No menciones la palabra "tránsito" ni aspectos técnicos. Enfoca el texto exclusivamente en dar la cualidad del día para sus actividades diarias, mencionando los beneficios y los posibles conflictos que puede presentar la jornada, con una actitud práctica serena. Máximo 1 minuto de lectura / 120-150 palabras).`;
+(INSTRUCCIÓN MANDATORIA PARA LA SECCIÓN 4: Interpreta la sinastría de los tránsitos actuales sobre la carta natal individual de ${name || 'el consultante'}. Sintetiza el resultado explicando cómo esos contactos específicos activan sus planetas y áreas natales hoy, detallando los beneficios y los posibles conflictos que presenta la jornada en sus actividades diarias, con un consejo práctico. PROHIBIDO DAR GENERALIDADES O TEXTOS PREFABRICADOS: debe ser el reflejo fiel de su sinastría individual de hoy. Máximo 1 minuto de lectura / 120-170 palabras).`;
 
   // Try current generation models (optimized timeout for serverless / Vercel execution)
   const modelsToTry = [

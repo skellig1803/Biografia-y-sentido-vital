@@ -1,4 +1,4 @@
-import app, { startServer } from './server/app';
+import app, { startServer } from './server/app.js';
 
 // Only start standalone HTTP server when not running in serverless environments like Vercel
 if (!process.env.VERCEL) {

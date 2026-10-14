@@ -159,6 +159,21 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
 
       const profectionCode = `Año ${calculation.yearOfLife.currentYearOfLife} (C${calculation.yearOfLife.profectionHouse} en ${calculation.yearOfLife.profectionSign}, Regente: ${calculation.yearOfLife.lordOfYear})`;
 
+      const activeTransitsRaw = activeTransits.slice(0, 8).map((t) => ({
+        transitPlanetName: t.transitPlanet?.name,
+        transitSign: t.transitPlanet?.sign,
+        natalPlanetName: t.natalPlanet?.name,
+        natalSign: t.natalPlanet?.sign,
+        natalHouse: t.natalPlanet?.house,
+        aspectType: t.aspectType,
+        aspectLabel: aspectSpanish[t.aspectType] || t.aspectType,
+        nature: t.nature,
+        biographicalImpact: t.biographicalImpact,
+        simpleExplanation: t.simpleExplanation,
+        practicalTip: t.practicalTip,
+        activatedHouseArea: t.activatedHouseArea,
+      }));
+
       const fallbackData: SynthesisFallbackInput = {
         name: calculation.birthData.name,
         exactAgeFormatted: calculation.exactAge.formatted,
@@ -173,6 +188,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         transitHouseActivations,
         transitCodes,
         transitDetailedList,
+        activeTransitsRaw,
         currentSkyPositions,
         todayDate: calculation.currentTransits?.transitDate,
       };
@@ -372,7 +388,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
                 Lectura Integral
               </h3>
               <p className="text-xs sm:text-sm text-stone-400 max-w-lg mx-auto leading-relaxed">
-                Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y la cualidad del día con sus beneficios y posibles conflictos en tus actividades cotidianas.
+                Integra el mapa natal completo de <strong>{calculation.birthData.name}</strong>, el septenio de vida según Rudolf Steiner, el eje evolutivo nodal y la interpretación de los tránsitos actuales en sinastría con su carta natal.
               </p>
             </div>
 
