@@ -49,13 +49,9 @@ function isReadingComplete(text: string, finishReason?: string): { complete: boo
     clean.includes('Cualidad') ||
     clean.includes('Sinastría') ||
     clean.includes('Sinastria') ||
-    clean.includes('Cualidad') ||
     clean.includes('Beneficios') ||
-    clean.includes('Clima Diario') ||
-    clean.includes('Alquimia') ||
     clean.includes('Tránsitos') ||
-    clean.includes('Transitos') ||
-    clean.includes('Cápsula de Audio');
+    clean.includes('Transitos');
 
   if (!hasSec1 || !hasSec2 || !hasSec3 || !hasSec4) {
     return { complete: false, reason: 'Falta alguna de las 4 secciones estructurales' };
@@ -84,13 +80,17 @@ export async function generateSynthesisReading(body: any): Promise<{
     transitCodes,
     transitDetailedList,
     activeTransitsRaw,
+    lunarNodesDetail,
     currentSkyPositions,
     todayDate,
     currentSeptenio,
     lunarNodes,
     yearOfLife,
     aspects,
+    houses,
+    planets,
     activeTransits,
+    currentTransits,
     isRegeneration,
     regenerationCount,
   } = body || {};
@@ -137,6 +137,7 @@ export async function generateSynthesisReading(body: any): Promise<{
     ascendantSign,
     septenioCode: septenioStr,
     nodalAxisCode: nodesStr,
+    lunarNodesDetail,
     profectionCode: profectionStr,
     natalAspectCodes: Array.isArray(natalAspectCodes) ? natalAspectCodes : undefined,
     natalPlanetsSummary,
@@ -146,6 +147,13 @@ export async function generateSynthesisReading(body: any): Promise<{
     currentSkyPositions,
     todayDate,
     activeTransitsRaw: Array.isArray(activeTransitsRaw) ? activeTransitsRaw : undefined,
+    currentSeptenio,
+    yearOfLife,
+    lunarNodes,
+    planets,
+    houses,
+    aspects,
+    currentTransits,
   };
 
   const ai = getGeminiClient();
@@ -162,11 +170,77 @@ export async function generateSynthesisReading(body: any): Promise<{
     ? `\nREGENERACIÓN (Perspectiva #${regenerationCount || 2}): Aporta un prisma interpretativo renovado, fresco y complementario. Indaga en matices anímicos inéditos, polaridades de sombra a integrar, vocación profunda y prácticas vitales concretas según Steiner y Lievegoed.`
     : '';
 
+  // Rich data formatting for prompt
+  const septenioContext = currentSeptenio
+    ? `- Septenio: ${currentSeptenio.number}° Septenio (${currentSeptenio.ageRange}), «${currentSeptenio.archetypalTitle}»
+- Fase: ${currentSeptenio.phase} | Esfera: ${currentSeptenio.planetarySphere}
+- Progreso en el ciclo de 7 años: ${currentSeptenio.progressPct}%
+- Pregunta Arquetípica del Alma: "${currentSeptenio.coreQuestion}"
+- Concepto de Rudolf Steiner: ${currentSeptenio.steinerConcept}
+- Retos Evolutivos de esta Edad: ${(currentSeptenio.ageSpecificChallenges || []).join('; ')}`
+    : `- Septenio: ${septenioStr}`;
+
+  const resolvedLunarNodes = lunarNodes || (lunarNodesDetail ? {
+    northNode: {
+      sign: lunarNodesDetail.northSign,
+      house: lunarNodesDetail.northHouse,
+      dharmaDirection: lunarNodesDetail.dharmaDirection,
+      soulLesson: lunarNodesDetail.soulLesson,
+      evolutionaryAction: lunarNodesDetail.evolutionaryAction,
+      strengthsToCultivate: lunarNodesDetail.strengthsToCultivate,
+    },
+    southNode: {
+      sign: lunarNodesDetail.southSign,
+      house: lunarNodesDetail.southHouse,
+      pastLifeGifts: lunarNodesDetail.pastLifeGifts,
+      comfortZoneTrap: lunarNodesDetail.comfortZoneTrap,
+      patternsToRelease: lunarNodesDetail.patternsToRelease,
+    },
+    nodalCycle: {
+      cycleMeaning: lunarNodesDetail.cycleMeaning,
+      nextNodalReturnAge: lunarNodesDetail.nextNodalReturnAge,
+    },
+  } : null);
+
+  const nodesContext = resolvedLunarNodes
+    ? `- Nodo Norte: en ${resolvedLunarNodes.northNode?.sign}${resolvedLunarNodes.northNode?.house ? ` (Casa ${resolvedLunarNodes.northNode.house})` : ''}
+  * Dirección de Dharma: ${resolvedLunarNodes.northNode?.dharmaDirection || ''}
+  * Lección del Alma: ${resolvedLunarNodes.northNode?.soulLesson || ''}
+  * Acción Concreta: ${resolvedLunarNodes.northNode?.evolutionaryAction || ''}
+  * Fortalezas a cultivar: ${(resolvedLunarNodes.northNode?.strengthsToCultivate || []).join(', ')}
+- Nodo Sur: en ${resolvedLunarNodes.southNode?.sign}${resolvedLunarNodes.southNode?.house ? ` (Casa ${resolvedLunarNodes.southNode.house})` : ''}
+  * Dones innatos del pasado: ${resolvedLunarNodes.southNode?.pastLifeGifts || ''}
+  * Trampa de inercia y confort: ${resolvedLunarNodes.southNode?.comfortZoneTrap || ''}
+  * Patrones automáticos a soltar: ${(resolvedLunarNodes.southNode?.patternsToRelease || []).join(', ')}
+- Ciclo Nodal: ${resolvedLunarNodes.nodalCycle?.cycleMeaning || ''}${resolvedLunarNodes.nodalCycle?.nextNodalReturnAge ? ` (Próximo retorno nodal a los ${resolvedLunarNodes.nodalCycle.nextNodalReturnAge} años)` : ''}`
+    : `- Eje Nodal: ${nodesStr}`;
+
+  const profectionContext = yearOfLife
+    ? `- Año de Vida: Año ${yearOfLife.currentYearOfLife} (${yearOfLife.completedYears} años cumplidos)
+- Profección Helenística: Casa ${yearOfLife.profectionHouse} en ${yearOfLife.profectionSign}
+- Regente del Año (Señor del Año): ${yearOfLife.lordOfYear}
+- Tema Central del Año: ${yearOfLife.annualCoreTheme}
+- Clima y Energía Antroposófica: ${yearOfLife.anthroposophicYearEnergy}
+- Directivas Clave del Año: ${(yearOfLife.keyDirectives || []).join('; ')}
+- Recomendaciones Prácticas: ${(yearOfLife.vitalRecommendations || []).join('; ')}`
+    : `- Profección anual: ${profectionStr}`;
+
   const systemInstruction = `Eres un sabio biógrafo antroposófico (siguiendo las enseñanzas de Rudolf Steiner y Bernard Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales, cálidos y transformadores.
 REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exhaustiva cada una de las 4 secciones solicitadas sin dejar ideas truncadas ni oraciones a medias en Markdown bien estructurado.
 
 DIRECTRICES POR SECCIÓN:
-- Secciones 1, 2 y 3: Desarrolla el análisis biográfico con profundidad antroposófica, abordando el septenio presente, el eje nodal evolutivo y el clima del año de vida con riqueza vivencial.
+- SECCIÓN 1: "## 1. La Esencia Biográfica y el Reto del Septenio Presente":
+  1. No hables en generalidades abstractas. Cita e interpreta el septenio específico (${septenioStr}), la pregunta arquetípica de Steiner, el principio biográfico y los retos evolutivos concretos calculados para esta edad.
+  2. Conecta todo lo anterior con su tríada natal individual: Sol en ${sunSign}, Luna en ${moonSign} y Ascendente en ${ascendantSign}.
+- SECCIÓN 2 (REGLA MANDATORIA): "## 2. La Brújula del Alma: El Eje de los Nodos Lunares":
+  1. PERSONALIZACIÓN OBLIGATORIA: Queda terminantemente prohibido hablar en generalidades o descripciones abstractas. Debes interpretar de forma explícita y profunda los signos y casas exactos del Nodo Norte y Nodo Sur de ${name}.
+  2. NODO SUR (PASADO): Detalla los dones y facilidades innatas traídas, pero advierte con claridad sobre la trampa de comodidad, inercia o patrones automáticos a trascender en este signo y casa específicos.
+  3. NODO NORTE (DHARMA): Detalla el vector de crecimiento, la lección esencial del alma, las acciones evolutivas concretas y las fortalezas que debe desplegar conscientemente en este signo y casa.
+  4. INTEGRACIÓN: Explica cómo poner la sabiduría del Nodo Sur al servicio del destino trazado por el Nodo Norte y su sincronía con el ciclo nodal.
+- SECCIÓN 3: "## 3. El Clima Vital del Año de Vida Actual":
+  1. Cita e integra el año de vida, la casa de profección, el signo y el Regente del Año.
+  2. Desarrolla el Tema Central del Año y la energía antroposófica calculados para el consultante.
+  3. Expón las directivas prioritarias y recomendaciones prácticas calculadas para modular la energía de este año, articulándolas con sus aspectos natales destacados.
 - SECCIÓN 4 (REGLA MANDATORIA): "## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal":
   1. INTERPRETACIÓN DE SINASTRÍA INDIVIDUAL: Esta sección NO debe ser genérica ni plantilla. Debe interpretar de forma explícita la SINASTRÍA del cielo de hoy sobre la carta natal de ${name}. Toma en cuenta exactamente qué planetas del cielo están contactando a qué planetas natales y activando qué casas de su mapa personal.
   2. SÍNTESIS APLICADA A SU DÍA: Sintetiza el significado vivencial de esos contactos celestes aplicados a sus actividades diarias:
@@ -174,36 +248,43 @@ DIRECTRICES POR SECCIÓN:
      - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas derivadas de los contactos armónicos o fluidos de hoy en su carta.
      - POSIBLES CONFLICTOS: Advierte sobre los posibles roces, riesgos o tensiones derivados de los contactos desafiantes activos hoy en su mapa, y cómo modularlos con serenidad.
      - CONSEJO PRÁCTICO: Una recomendación clara y aplicable a su jornada.
-  3. DIFERENCIACIÓN TOTAL: Dos personas con configuraciones planetarias distintas DEBEN recibir respuestas en el punto 4 totalmente diferentes. La interpretación debe pertenecer exclusivamente a la sinastría de los tránsitos de hoy con los planetas y casas natales de esta persona.
+  3. DIFERENCIACIÓN TOTAL: Dos personas con configuraciones planetarias distintas DEBEN recibir respuestas totalmente diferentes. La interpretación debe pertenecer exclusivamente a la sinastría de los tránsitos de hoy con los planetas y casas natales de esta persona.
   4. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, vivencial y aterrizado (120-170 palabras, aproximadamente 1 minuto de lectura). Sin viñetas mecánicas ni menciones a audio o micrófonos.`;
 
   const prompt = `Consultante: ${name || 'Consultante'} (${exactAgeFormatted || 'Edad actual'}).
-Carta natal individual:
+
+DATOS YA OBTENIDOS EN LAS OTRAS PESTAÑAS DE LA APLICACIÓN:
+[PESTAÑA 1 - SEPTENIOS]:
+${septenioContext}
+
+[PESTAÑA 2 - NODOS LUNARES]:
+${nodesContext}
+
+[PESTAÑA 3 - AÑO DE VIDA Y PROFECCIONES]:
+${profectionContext}
+
+[CARTA NATAL BASE]:
 - Sol en ${sunSign || 'N/A'}, Luna en ${moonSign || 'N/A'}, Ascendente en ${ascendantSign || 'N/A'}.
 ${natalPlanetsSummary ? `- Posiciones natales clave: ${natalPlanetsSummary}.` : ''}
-- Septenio: ${septenioStr}.
-- Nodos Lunares: ${nodesStr}.
-- Profección anual: ${profectionStr}.
 - Aspectos natales destacados: ${aspectsStr}.
 
-Configuración de la SINASTRÍA de los tránsitos de hoy con su carta natal:
+[PESTAÑA 4 - SINASTRÍA DE TRÁNSITOS DE HOY CON LA CARTA NATAL]:
 - Contactos celestes activos sobre sus planetas natales:
 ${detailedTransitsStr}
 ${transitHouseActivations && Array.isArray(transitHouseActivations) && transitHouseActivations.length > 0 ? `- Áreas natales (casas) activadas hoy por el cielo:\n${transitHouseActivations.join('\n')}\n` : ''}
 ${currentSkyPositions ? `Posiciones del cielo de hoy: ${currentSkyPositions}.` : ''}${regenNote}
 
+REQUISITO FUNDAMENTAL:
+Sintetiza e integra en una narrativa biográfica continua y profunda los datos YA CALCULADOS arriba. No uses respuestas genéricas.
 Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones numeradas de principio a fin:
 ## 1. La Esencia Biográfica y el Reto del Septenio Presente
 ## 2. La Brújula del Alma: El Eje de los Nodos Lunares
 ## 3. El Clima Vital del Año de Vida Actual
-## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal
+## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal`;
 
-(INSTRUCCIÓN MANDATORIA PARA LA SECCIÓN 4: Interpreta la sinastría de los tránsitos actuales sobre la carta natal individual de ${name || 'el consultante'}. Sintetiza el resultado explicando cómo esos contactos específicos activan sus planetas y áreas natales hoy, detallando los beneficios y los posibles conflictos que presenta la jornada en sus actividades diarias, con un consejo práctico. PROHIBIDO DAR GENERALIDADES O TEXTOS PREFABRICADOS: debe ser el reflejo fiel de su sinastría individual de hoy. Máximo 1 minuto de lectura / 120-170 palabras).`;
-
-  // Try current generation models (optimized timeout for serverless / Vercel execution)
   const modelsToTry = [
-    { name: 'gemini-3.8-flash', timeoutMs: 12000 },
-    { name: 'gemini-3.1-flash-lite', timeoutMs: 8000 },
+    { name: 'gemini-2.5-flash', timeoutMs: 14000 },
+    { name: 'gemini-3.1-flash-lite', timeoutMs: 9000 },
   ];
 
   for (const { name: modelName, timeoutMs } of modelsToTry) {
@@ -215,7 +296,7 @@ Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones
           contents: prompt,
           config: {
             systemInstruction,
-            temperature: isRegeneration ? 0.82 : 0.70,
+            temperature: isRegeneration ? 0.78 : 0.68,
             maxOutputTokens: 8192,
           },
         }),
@@ -244,7 +325,7 @@ Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones
   }
 
   // Fallback guaranteed reading if AI is slow or encounters issues
-  console.info('[Synthesis] Fallback activado. Entregando síntesis biográfica garantizada.');
+  console.info('[Synthesis] Fallback activado. Entregando síntesis biográfica garantizada basada en las otras pestañas.');
   return {
     success: true,
     reading: generateGuaranteedCompleteSynthesis(fallbackData),

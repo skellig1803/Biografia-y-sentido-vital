@@ -18,8 +18,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let body: any = req.body;
   try {
-    let body = req.body;
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
@@ -41,7 +41,7 @@ export default async function handler(req: any, res: any) {
       );
       return res.status(200).json({
         success: true,
-        reading: generateGuaranteedCompleteSynthesis(req.body || {}),
+        reading: generateGuaranteedCompleteSynthesis(body || req.body || {}),
         source: 'structured_synthesis',
       });
     } catch {

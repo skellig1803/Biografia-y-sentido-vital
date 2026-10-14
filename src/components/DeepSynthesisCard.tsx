@@ -174,6 +174,27 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         activatedHouseArea: t.activatedHouseArea,
       }));
 
+      const lunarNodesDetail = {
+        northSign: calculation.lunarNodes.northNode.sign,
+        northHouse: calculation.lunarNodes.northNode.house,
+        northDegree: calculation.lunarNodes.northNode.degree,
+        northMinute: calculation.lunarNodes.northNode.minute,
+        dharmaDirection: calculation.lunarNodes.northNode.dharmaDirection,
+        soulLesson: calculation.lunarNodes.northNode.soulLesson,
+        evolutionaryAction: calculation.lunarNodes.northNode.evolutionaryAction,
+        strengthsToCultivate: calculation.lunarNodes.northNode.strengthsToCultivate,
+        southSign: calculation.lunarNodes.southNode.sign,
+        southHouse: calculation.lunarNodes.southNode.house,
+        southDegree: calculation.lunarNodes.southNode.degree,
+        southMinute: calculation.lunarNodes.southNode.minute,
+        pastLifeGifts: calculation.lunarNodes.southNode.pastLifeGifts,
+        comfortZoneTrap: calculation.lunarNodes.southNode.comfortZoneTrap,
+        patternsToRelease: calculation.lunarNodes.southNode.patternsToRelease,
+        cycleMeaning: calculation.lunarNodes.nodalCycle?.cycleMeaning,
+        nextNodalReturnAge: calculation.lunarNodes.nodalCycle?.nextNodalReturnAge,
+        yearsUntilReturn: calculation.lunarNodes.nodalCycle?.yearsUntilReturn,
+      };
+
       const fallbackData: SynthesisFallbackInput = {
         name: calculation.birthData.name,
         exactAgeFormatted: calculation.exactAge.formatted,
@@ -182,6 +203,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         ascendantSign: ascendant?.sign || 'Géminis',
         septenioCode,
         nodalAxisCode,
+        lunarNodesDetail,
         profectionCode,
         natalAspectCodes,
         natalPlanetsSummary,
@@ -191,6 +213,13 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         activeTransitsRaw,
         currentSkyPositions,
         todayDate: calculation.currentTransits?.transitDate,
+        currentSeptenio: calculation.currentSeptenio,
+        yearOfLife: calculation.yearOfLife,
+        lunarNodes: calculation.lunarNodes,
+        planets: calculation.planets,
+        houses: calculation.houses,
+        aspects: calculation.aspects,
+        currentTransits: calculation.currentTransits,
       };
 
       let finalReading = '';

@@ -522,68 +522,86 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
 
 // Setup Vite middleware in dev or static files in production
 export async function startServer() {
+  const isProduction = process.env.NODE_ENV === 'production';
   const distPath = path.join(process.cwd(), 'dist');
-  let hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
 
-  // If in production or container, but dist/index.html is missing, attempt quick build
-  if (!hasStaticDist && process.env.NODE_ENV === 'production') {
+  if (!isProduction) {
     try {
-      console.log('dist/index.html not found in production. Attempting build...');
-      const { execSync } = await import('child_process');
-      execSync('npx vite build', { stdio: 'inherit' });
-      hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
-    } catch (buildErr) {
-      console.warn('Could not auto-build client assets on the fly:', buildErr);
-    }
-  }
-
-  const serveFallbackHtml = (res: express.Response) => {
-    const rootIndex = path.join(process.cwd(), 'index.html');
-    if (fs.existsSync(rootIndex)) {
-      return res.sendFile(rootIndex, (err) => {
-        if (err && !res.headersSent) {
-          res.status(200).type('html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faro Biográfico</title></head><body><div id="root">Cargando aplicación...</div></body></html>`);
-        }
-      });
-    }
-    return res.status(200).type('html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faro Biográfico</title></head><body><div id="root">Cargando aplicación...</div></body></html>`);
-  };
-
-  const sendIndexSafely = (res: express.Response) => {
-    const indexPath = path.join(distPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath, (err) => {
-        if (err && !res.headersSent) {
-          serveFallbackHtml(res);
-        }
-      });
-    } else {
-      serveFallbackHtml(res);
-    }
-  };
-
-  if (hasStaticDist) {
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      sendIndexSafely(res);
-    });
-  } else {
-    try {
+      console.log('Starting server in DEVELOPMENT mode with Vite middleware...');
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         server: { middlewareMode: true },
-        appType: 'spa',
+        appType: 'custom',
       });
       app.use(vite.middlewares);
+
+      // Handle root and client-side navigation in dev
+      app.get('*', async (req, res, next) => {
+        if (req.path.startsWith('/api')) {
+          return next();
+        }
+        const ext = path.extname(req.path);
+        if (ext && ext !== '.html') {
+          return res.status(404).send('Not found');
+        }
+        try {
+          const url = req.originalUrl;
+          const rootIndex = path.join(process.cwd(), 'index.html');
+          if (fs.existsSync(rootIndex)) {
+            let template = fs.readFileSync(rootIndex, 'utf-8');
+            template = await vite.transformIndexHtml(url, template);
+            return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+          }
+          return next();
+        } catch (e) {
+          vite.ssrFixStacktrace(e as Error);
+          next(e);
+        }
+      });
     } catch (err) {
-      console.warn('Vite middleware could not be loaded, using safe static fallback:', err);
+      console.warn('Vite middleware could not be loaded in dev, falling back to static:', err);
       if (fs.existsSync(distPath)) {
         app.use(express.static(distPath));
       }
-      app.get('*', (req, res) => {
-        sendIndexSafely(res);
-      });
     }
+  } else {
+    console.log('Starting server in PRODUCTION mode...');
+    let hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
+
+    if (!hasStaticDist) {
+      try {
+        console.log('dist/index.html not found in production. Attempting build...');
+        const { execSync } = await import('child_process');
+        execSync('npx vite build', { stdio: 'inherit' });
+        hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
+      } catch (buildErr) {
+        console.warn('Could not auto-build client assets on the fly:', buildErr);
+      }
+    }
+
+    if (hasStaticDist) {
+      app.use(express.static(distPath));
+    }
+
+    // SPA routing in production: serve dist/index.html only for HTML requests
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      const ext = path.extname(req.path);
+      if (ext && ext !== '.html') {
+        return res.status(404).send('Not found');
+      }
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+      const rootIndex = path.join(process.cwd(), 'index.html');
+      if (fs.existsSync(rootIndex)) {
+        return res.sendFile(rootIndex);
+      }
+      return res.status(200).type('html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faro Biográfico</title></head><body><div id="root">Cargando aplicación...</div></body></html>`);
+    });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
