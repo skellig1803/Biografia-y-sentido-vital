@@ -7,9 +7,22 @@ import {
 
 dotenv.config();
 
+export function getResolvedApiKey(): string | null {
+  const rawKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
+    process.env.GEMINI_KEY ||
+    process.env.VITE_GEMINI_API_KEY ||
+    process.env.gemini_api_key ||
+    '';
+  const cleanKey = rawKey.trim().replace(/^["']|["']$/g, '');
+  return cleanKey.length > 5 ? cleanKey : null;
+}
+
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getResolvedApiKey();
   if (!apiKey) {
     return null;
   }

@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { computeSwissEphemerisChart } from './swissEphemeris.js';
 import { generateGuaranteedCompleteSynthesis } from './comprehensiveSynthesisFallback.js';
-import { generateSynthesisReading } from './synthesisEngine.js';
+import { generateSynthesisReading, getResolvedApiKey } from './synthesisEngine.js';
 import { analyzeBiographicalSeptenios } from '../lib/gemini.js';
 import { upsertBiografia, getUserById } from '../lib/db.js';
 
@@ -47,7 +47,7 @@ app.use((req, res, next) => {
 // Lazy GoogleGenAI client
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getResolvedApiKey();
   if (!apiKey) {
     return null;
   }
@@ -63,7 +63,7 @@ function getGeminiClient(): GoogleGenAI | null {
 app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'ok',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+    hasGeminiKey: Boolean(getResolvedApiKey()),
     provider: 'polar',
     hasPolar: Boolean(
       process.env.POLAR_ACCESS_TOKEN ||

@@ -17,8 +17,13 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="border-b border-stone-800 bg-stone-900/90 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-indigo-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shadow-inner shrink-0">
-            <Compass className="w-5 h-5 text-amber-400" />
+          <div className="relative shrink-0">
+            <img
+              src="/src/assets/images/faro_biografico_logo_1792106770743.jpg"
+              alt="Logo Faro Biográfico"
+              className="w-11 h-11 rounded-full object-cover border border-amber-500/50 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/30"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
             <h1 className="font-serif text-lg sm:text-xl font-bold text-stone-100 tracking-wide flex items-center gap-2">
