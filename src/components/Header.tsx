@@ -1,5 +1,6 @@
 import React from 'react';
 import { Compass, Sparkles, PlusCircle, ShieldCheck } from 'lucide-react';
+const logoUrl = '/faro_biografico_logo.jpg';
 
 interface HeaderProps {
   hasCalculated?: boolean;
@@ -19,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
             <img
-              src="/src/assets/images/faro_biografico_logo_1792106770743.jpg"
+              src={logoUrl}
               alt="Logo Faro Biográfico"
               className="w-11 h-11 rounded-full object-cover border border-amber-500/50 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/30"
               referrerPolicy="no-referrer"

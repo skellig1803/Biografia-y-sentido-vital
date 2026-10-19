@@ -6,8 +6,14 @@ import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { computeSwissEphemerisChart } from './swissEphemeris.js';
 import { generateGuaranteedCompleteSynthesis } from './comprehensiveSynthesisFallback.js';
-import { generateSynthesisReading, getResolvedApiKey } from './synthesisEngine.js';
+import {
+  generateSynthesisReading,
+  getResolvedApiKey,
+  getResolvedDeepSeekApiKey,
+} from './synthesisEngine.js';
+import { reportDeveloperError, getDeveloperErrorRegistry } from '../lib/errorLogger.js';
 import { analyzeBiographicalSeptenios } from '../lib/gemini.js';
+import { analyzeBiographicalSeptenios as analyzeBiographicalSepteniosDeepSeek } from '../lib/deepseek.js';
 import { upsertBiografia, getUserById } from '../lib/db.js';
 
 dotenv.config();
@@ -64,6 +70,7 @@ app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'ok',
     hasGeminiKey: Boolean(getResolvedApiKey()),
+    hasDeepSeekKey: Boolean(getResolvedDeepSeekApiKey()),
     provider: 'polar',
     hasPolar: Boolean(
       process.env.POLAR_ACCESS_TOKEN ||
@@ -439,7 +446,7 @@ app.post(['/api/biografia/evaluar', '/biografia/evaluar'], async (req, res) => {
       patrones_previos: patrones_clave || null,
     };
 
-    const interpretacion = await analyzeBiographicalSeptenios(entradaSeptenio, {
+    const evaluatorOptions = {
       contextoAdicional: userContext
         ? {
             nombre: userContext.nombre,
@@ -447,7 +454,16 @@ app.post(['/api/biografia/evaluar', '/biografia/evaluar'], async (req, res) => {
             lugar_nacimiento: userContext.lugar_nacimiento,
           }
         : null,
-    });
+    };
+
+    let interpretacion: any;
+    if (getResolvedApiKey()) {
+      interpretacion = await analyzeBiographicalSeptenios(entradaSeptenio, evaluatorOptions);
+    } else if (getResolvedDeepSeekApiKey()) {
+      interpretacion = await analyzeBiographicalSepteniosDeepSeek(entradaSeptenio, evaluatorOptions);
+    } else {
+      interpretacion = await analyzeBiographicalSeptenios(entradaSeptenio, evaluatorOptions);
+    }
 
     const patronesAGuardar =
       patrones_clave && patrones_clave.trim()
@@ -497,26 +513,37 @@ app.post(['/api/biografia/evaluar', '/biografia/evaluar'], async (req, res) => {
   }
 });
 
+// Endpoint para consultar el registro de errores del desarrollador con estadísticas de tasa límite
+app.get(['/api/developer/errors', '/developer/errors'], (req, res) => {
+  res.json({
+    status: 'ok',
+    registry: getDeveloperErrorRegistry(),
+  });
+});
+
 // Gemini Synthesis Endpoint for Anthroposophic Biography & Astrological Transit Reading
 app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
   try {
     const result = await generateSynthesisReading(req.body);
+    if (!result.success) {
+      return res.status(503).json(result);
+    }
     return res.status(200).json(result);
   } catch (error: any) {
     console.error('Error general en /api/synthesis:', error);
-    try {
-      const fallbackReading = generateGuaranteedCompleteSynthesis(req.body || {});
-      return res.status(200).json({
-        success: true,
-        reading: fallbackReading,
-        source: 'structured_synthesis',
-      });
-    } catch {
-      return res.status(500).json({
-        success: false,
-        error: error?.message || 'Error al generar la síntesis biográfica',
-      });
-    }
+    await reportDeveloperError({
+      category: 'SERVER_HANDLER_EXCEPTION',
+      error,
+      customMessage: `Excepción en endpoint /api/synthesis: ${error?.message || error}`,
+      context: { bodyConsultante: req.body?.name },
+    }).catch(() => {});
+
+    return res.status(503).json({
+      success: false,
+      error:
+        'El servicio de Inteligencia Artificial no pudo completar la lectura en este momento (tiempo de espera o error de servidor). Tu crédito NO ha sido consumido y tu saldo permanece intacto. Por favor, reintenta en unos instantes.',
+      creditConsumed: false,
+    });
   }
 });
 

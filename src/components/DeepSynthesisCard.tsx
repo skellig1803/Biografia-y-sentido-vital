@@ -12,11 +12,11 @@ import {
   RotateCcw,
   Lock,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { getCreditBalance, consumeCredit } from '../utils/creditManager';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import {
-  generateGuaranteedCompleteSynthesis,
   SynthesisFallbackInput,
 } from '../utils/comprehensiveSynthesisFallback';
 
@@ -223,10 +223,11 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
       };
 
       let finalReading = '';
+      let serverErrorMsg = '';
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 55000);
 
         const response = await fetch('/api/synthesis', {
           method: 'POST',
@@ -240,38 +241,45 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
         });
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const data = await response.json().catch(() => null);
-          if (data && data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 200) {
-            finalReading = data.reading.trim();
-          }
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data && data.success && data.reading && typeof data.reading === 'string' && data.reading.trim().length > 200) {
+          finalReading = data.reading.trim();
+        } else if (data && data.error) {
+          serverErrorMsg = data.error;
         }
-      } catch (networkErr) {
-        console.warn('[Lectura Integral] Error o timeout en llamada de red Vercel:', networkErr);
+      } catch (networkErr: any) {
+        console.warn('[Lectura Integral] Error o timeout en llamada de red:', networkErr);
+        if (networkErr?.name === 'AbortError') {
+          serverErrorMsg =
+            'La generación de la lectura excedió el tiempo máximo de respuesta del servidor (timeout). Tu crédito NO ha sido consumido y tu saldo permanece intacto.';
+        }
       }
 
-      // If serverless function did not return reading or failed/timed out, deliver guaranteed synthesis immediately
+      // Si la IA no retornó la lectura, NO consumimos el crédito y mostramos el error informativo
       if (!finalReading) {
-        console.info('[Lectura Integral] Entregando síntesis biográfica garantizada de alta precisión');
-        finalReading = generateGuaranteedCompleteSynthesis(fallbackData);
+        setErrorMsg(
+          serverErrorMsg ||
+            'El servicio de Inteligencia Artificial no pudo completar la síntesis biográfica en este momento (tiempo de espera o saturación temporal). Tu crédito NO ha sido consumido y tu saldo permanece intacto. Por favor, pulsa Reintentar en unos instantes.'
+        );
+        return;
       }
 
-      if (finalReading && finalReading.length > 200) {
-        if (isFirstUnlock) {
-          consumeCredit(`Lectura Integral para ${calculation.birthData.name}`);
-        }
-        setAiReading(finalReading);
-        try {
-          sessionStorage.setItem(cacheKey, finalReading);
-        } catch {}
-        setRegenerationCount((prev) => prev + 1);
-        setErrorMsg(null);
-      } else {
-        setErrorMsg('No se pudo completar la lectura en este intento. Por favor, pulsa Reintentar.');
+      // Solo se consume el crédito si la IA completó exitosamente la lectura integral
+      if (isFirstUnlock) {
+        consumeCredit(`Lectura Integral para ${calculation.birthData.name}`);
       }
+      setAiReading(finalReading);
+      try {
+        sessionStorage.setItem(cacheKey, finalReading);
+      } catch {}
+      setRegenerationCount((prev) => prev + 1);
+      setErrorMsg(null);
     } catch (err: any) {
       console.warn('AI endpoint unexpected error:', err);
-      setErrorMsg('Hubo un problema al generar la lectura. Tu crédito está a salvo. Puedes reintentar en un instante.');
+      setErrorMsg(
+        'Hubo un problema de conexión al procesar la solicitud. Tu crédito NO ha sido consumido y tu saldo permanece intacto. Puedes reintentar cuando gustes.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -358,17 +366,24 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
 
       {/* Error Notice */}
       {errorMsg && (
-        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{errorMsg}</span>
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-rose-300">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>No se pudo generar la lectura integral en este intento</span>
+            </div>
+            <p className="text-stone-300 pl-6 leading-relaxed">{errorMsg}</p>
+            <div className="pl-6 pt-1 flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Garantía de saldo: 0 créditos consumidos. Tu saldo no ha sufrido modificaciones.</span>
+            </div>
           </div>
           <button
             type="button"
             onClick={handleFetchAiReading}
-            className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-medium rounded-md border border-rose-500/40 text-xs cursor-pointer flex items-center gap-1 self-start sm:self-auto"
+            className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 font-semibold rounded-lg border border-rose-500/40 text-xs cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-colors shadow-sm"
           >
-            <RotateCcw className="w-3 h-3" />
+            <RotateCcw className="w-3.5 h-3.5" />
             Reintentar
           </button>
         </div>

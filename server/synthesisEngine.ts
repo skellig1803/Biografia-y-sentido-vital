@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { reportDeveloperError, classifyErrorCategory } from '../lib/errorLogger.js';
 import {
-  generateGuaranteedCompleteSynthesis,
   SynthesisFallbackInput,
 } from '../src/utils/comprehensiveSynthesisFallback.js';
 
@@ -15,6 +15,16 @@ export function getResolvedApiKey(): string | null {
     process.env.GEMINI_KEY ||
     process.env.VITE_GEMINI_API_KEY ||
     process.env.gemini_api_key ||
+    '';
+  const cleanKey = rawKey.trim().replace(/^["']|["']$/g, '');
+  return cleanKey.length > 5 ? cleanKey : null;
+}
+
+export function getResolvedDeepSeekApiKey(): string | null {
+  const rawKey =
+    process.env.DEEPSEEK_API_KEY ||
+    process.env.DEEPSEEK_KEY ||
+    process.env.DEEP_SEEK_API_KEY ||
     '';
   const cleanKey = rawKey.trim().replace(/^["']|["']$/g, '');
   return cleanKey.length > 5 ? cleanKey : null;
@@ -40,6 +50,53 @@ function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Prom
     timer = setTimeout(() => reject(new Error(errorMsg)), ms);
   });
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
+async function generateWithDeepSeek(
+  prompt: string,
+  systemInstruction: string,
+  timeoutMs = 25000
+): Promise<string | null> {
+  const apiKey = getResolvedDeepSeekApiKey();
+  if (!apiKey) return null;
+
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+
+  const controller = new AbortController();
+  const fetchPromise = fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 3500,
+      stream: false,
+    }),
+    signal: controller.signal,
+  });
+
+  const response = await withTimeout(
+    fetchPromise,
+    timeoutMs,
+    `Timeout de ${timeoutMs / 1000}s excedido en DeepSeek`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`DeepSeek API HTTP ${response.status}: ${errorText}`);
+  }
+
+  const responseData: any = await response.json();
+  const outputText = responseData?.choices?.[0]?.message?.content;
+  return outputText ? outputText.trim() : null;
 }
 
 function isReadingComplete(text: string, finishReason?: string): { complete: boolean; reason?: string } {
@@ -75,8 +132,11 @@ function isReadingComplete(text: string, finishReason?: string): { complete: boo
 
 export async function generateSynthesisReading(body: any): Promise<{
   success: boolean;
-  reading: string;
-  source: 'ai' | 'structured_synthesis';
+  reading?: string;
+  source?: 'ai' | 'none';
+  error?: string;
+  errorCategory?: string;
+  creditConsumed?: boolean;
 }> {
   const {
     name,
@@ -170,12 +230,23 @@ export async function generateSynthesisReading(body: any): Promise<{
   };
 
   const ai = getGeminiClient();
-  if (!ai) {
-    console.info('[Synthesis] Sin GEMINI_API_KEY en entorno, entregando síntesis biográfica garantizada.');
+  const hasDeepSeek = Boolean(getResolvedDeepSeekApiKey());
+  if (!ai && !hasDeepSeek) {
+    const errorMsg = 'No hay claves de API de IA configuradas en el entorno (GEMINI_API_KEY o DEEPSEEK_API_KEY).';
+    console.warn(`[Synthesis] ${errorMsg}`);
+    await reportDeveloperError({
+      category: 'NO_AI_KEYS_CONFIGURED',
+      error: errorMsg,
+      model: 'none',
+      customMessage: 'El usuario intentó generar la síntesis biográfica pero no hay GEMINI_API_KEY ni DEEPSEEK_API_KEY configuradas.',
+      context: { consultante: name, edad: exactAgeFormatted },
+    });
     return {
-      success: true,
-      reading: generateGuaranteedCompleteSynthesis(fallbackData),
-      source: 'structured_synthesis',
+      success: false,
+      reading: '',
+      error: 'El servicio de Inteligencia Artificial no está configurado temporalmente. Tu crédito NO ha sido consumido y tu saldo permanece intacto.',
+      errorCategory: 'NO_AI_KEYS_CONFIGURED',
+      creditConsumed: false,
     };
   }
 
@@ -295,53 +366,125 @@ Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones
 ## 3. El Clima Vital del Año de Vida Actual
 ## 4. Cualidad del Día: Tránsitos en Sinastría con tu Carta Natal`;
 
-  const modelsToTry = [
-    { name: 'gemini-2.5-flash', timeoutMs: 14000 },
-    { name: 'gemini-3.1-flash-lite', timeoutMs: 9000 },
-  ];
+  const failedAttempts: Array<{ model: string; error: string; category: string }> = [];
 
-  for (const { name: modelName, timeoutMs } of modelsToTry) {
-    try {
-      console.log(`[Synthesis] Intentando con modelo: ${modelName} (timeout ${timeoutMs}ms)`);
-      const response = await withTimeout(
-        ai.models.generateContent({
+  if (ai) {
+    const modelsToTry = [
+      { name: 'gemini-3.8-flash', timeoutMs: 32000 },
+      { name: 'gemini-3.1-flash-lite', timeoutMs: 16000 },
+    ];
+
+    for (const { name: modelName, timeoutMs } of modelsToTry) {
+      try {
+        console.log(`[Synthesis] Intentando con modelo: ${modelName} (timeout ${timeoutMs}ms)`);
+        const response = await withTimeout(
+          ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              systemInstruction,
+              temperature: isRegeneration ? 0.78 : 0.68,
+              maxOutputTokens: 4096,
+            },
+          }),
+          timeoutMs,
+          `Timeout de ${timeoutMs}ms excedido en ${modelName}`
+        );
+
+        const text = response.text || '';
+        const finishReason = response.candidates?.[0]?.finishReason;
+        const validation = isReadingComplete(text, finishReason);
+
+        if (validation.complete) {
+          const readingText = text.trim();
+          console.log(`[Synthesis] Generación exitosa con ${modelName} (${readingText.length} caracteres)`);
+          return {
+            success: true,
+            reading: readingText,
+            source: 'ai',
+            creditConsumed: true,
+          };
+        } else {
+          const incompleteMsg = `Modelo ${modelName} retornó texto incompleto: ${validation.reason}`;
+          console.warn(`[Synthesis] ${incompleteMsg}`);
+          failedAttempts.push({
+            model: modelName,
+            error: incompleteMsg,
+            category: 'AI_RESPONSE_INCOMPLETE',
+          });
+        }
+      } catch (err: any) {
+        const errorMsg = err?.message || String(err);
+        console.warn(`[Synthesis] Error o timeout con ${modelName}:`, errorMsg);
+        failedAttempts.push({
           model: modelName,
-          contents: prompt,
-          config: {
-            systemInstruction,
-            temperature: isRegeneration ? 0.78 : 0.68,
-            maxOutputTokens: 8192,
-          },
-        }),
-        timeoutMs,
-        `Timeout de ${timeoutMs}ms excedido en ${modelName}`
-      );
-
-      const text = response.text || '';
-      const finishReason = response.candidates?.[0]?.finishReason;
-      const validation = isReadingComplete(text, finishReason);
-
-      if (validation.complete) {
-        const readingText = text.trim();
-        console.log(`[Synthesis] Generación exitosa con ${modelName} (${readingText.length} caracteres)`);
-        return {
-          success: true,
-          reading: readingText,
-          source: 'ai',
-        };
-      } else {
-        console.warn(`[Synthesis] Modelo ${modelName} incompleto (${validation.reason}).`);
+          error: errorMsg,
+          category: classifyErrorCategory(err, modelName),
+        });
       }
-    } catch (err: any) {
-      console.warn(`[Synthesis] Error o timeout con ${modelName}:`, err?.message || err);
     }
   }
 
-  // Fallback guaranteed reading if AI is slow or encounters issues
-  console.info('[Synthesis] Fallback activado. Entregando síntesis biográfica garantizada basada en las otras pestañas.');
+  // DeepSeek AI fallback if Gemini was unavailable, timed out or unconfigured
+  if (hasDeepSeek) {
+    try {
+      console.log('[Synthesis] Intentando generación biográfica profunda con DeepSeek API...');
+      const deepSeekText = await generateWithDeepSeek(prompt, systemInstruction, 25000);
+      if (deepSeekText) {
+        const validation = isReadingComplete(deepSeekText);
+        if (validation.complete) {
+          console.log(`[Synthesis] Generación exitosa con DeepSeek (${deepSeekText.length} caracteres)`);
+          return {
+            success: true,
+            reading: deepSeekText,
+            source: 'ai',
+            creditConsumed: true,
+          };
+        } else {
+          const incompleteMsg = `Respuesta de DeepSeek incompleta: ${validation.reason}`;
+          console.warn(`[Synthesis] ${incompleteMsg}`);
+          failedAttempts.push({
+            model: 'deepseek-chat',
+            error: incompleteMsg,
+            category: 'AI_RESPONSE_INCOMPLETE',
+          });
+        }
+      }
+    } catch (deepSeekErr: any) {
+      const deepSeekMsg = deepSeekErr?.message || String(deepSeekErr);
+      console.warn('[Synthesis] Error o timeout con DeepSeek:', deepSeekMsg);
+      failedAttempts.push({
+        model: 'deepseek-chat',
+        error: deepSeekMsg,
+        category: classifyErrorCategory(deepSeekErr, 'deepseek'),
+      });
+    }
+  }
+
+  // NO contingency reading: report to developer with rate limiting and notify user cleanly
+  const primaryCategory = failedAttempts[0]?.category || 'AI_SERVICE_UNAVAILABLE';
+  const summaryError = failedAttempts.map((f) => `[${f.model}: ${f.error}]`).join(' | ');
+
+  console.error(`[Synthesis] Ningún modelo de IA pudo completar la síntesis: ${summaryError}`);
+
+  await reportDeveloperError({
+    category: primaryCategory,
+    error: summaryError || 'Fallo general de generación IA en síntesis',
+    model: failedAttempts[0]?.model || (ai ? 'gemini-3.8-flash' : 'deepseek-chat'),
+    customMessage: `Fallo al generar síntesis para el consultante "${name || 'N/A'}". Ningún modelo de IA pudo entregar la lectura requerida.`,
+    context: {
+      consultante: name,
+      edad: exactAgeFormatted,
+      intentos: failedAttempts,
+    },
+  });
+
   return {
-    success: true,
-    reading: generateGuaranteedCompleteSynthesis(fallbackData),
-    source: 'structured_synthesis',
+    success: false,
+    reading: '',
+    error:
+      'El servicio de Inteligencia Artificial no pudo completar la lectura en este momento (tiempo de espera o saturación temporal). Tu crédito NO ha sido consumido y tu saldo permanece intacto. Por favor, reintenta en unos instantes.',
+    errorCategory: primaryCategory,
+    creditConsumed: false,
   };
 }
