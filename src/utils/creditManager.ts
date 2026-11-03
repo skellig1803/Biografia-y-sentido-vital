@@ -100,19 +100,20 @@ export const PRICING_PLANS: PricingPlan[] = [
 export const CONSULTING_SERVICES: ConsultingService[] = [
   {
     id: 'service_faro_diario',
-    name: 'Faro Diario - Suscripción Matutina (OK Google / Audio PWA)',
-    tagline: 'Audio de sincronización vital matutino de 45 segundos',
+    name: 'Faro Diario - Suscripción Google Assistant & Audio PWA',
+    tagline: 'Punto 4 de tu lectura integrado con IA: Tránsitos, aspectos benéficos y retos diarios',
     type: 'subscription',
-    typeLabel: 'Suscripción Mensual',
+    typeLabel: 'Suscripción Mensual ($7.99 USD/mes)',
     priceUsd: 7.99,
     billingInterval: 'mes',
     netEstimateUsd: 6.79,
-    deliverable: 'Audio matutino personalizado de 45 seg (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
+    deliverable: 'Audio diario pregenerado a la 1:00 AM para Google Assistant ("Ok Google, habla con Faro Biográfico") y reproductor web/PWA',
     features: [
-      'Audio matutino personalizado de 45 seg generado cada día',
-      'Síntesis activa: Nodo Lunar + Septenio + Nodo Anual + Tránsitos diarios',
-      'Integración para PWA móvil y rutinas de altavoz inteligente / voz',
-      'Suscripción mensual flexible gestionada por Polar.sh (cancela cuando desees)',
+      'Punto 4 de la lectura integrada con IA entregado cada día a tu despertar',
+      'Análisis diario de tránsitos activos, aspectos benéficos y conflictos a transformar',
+      'Pregeneración nocturna a la 1:00 AM: reproducción instantánea sin esperas ni timeouts',
+      'Compatible con Google Assistant: "Ok Google, habla con Faro Biográfico"',
+      'Renovación mensual flexible vía Polar.sh (cancela con un clic en cualquier momento)',
     ],
   },
   {

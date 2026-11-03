@@ -32,6 +32,7 @@ interface CreditModalProps {
   onClose: () => void;
   onCreditsUpdated?: (newBalance: number) => void;
   onOpenLegal?: (tab?: 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide') => void;
+  initialTab?: 'credits' | 'services';
 }
 
 export const CreditModal: React.FC<CreditModalProps> = ({
@@ -39,8 +40,15 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   onClose,
   onCreditsUpdated,
   onOpenLegal,
+  initialTab = 'credits',
 }) => {
-  const [activeTab, setActiveTab] = useState<'credits' | 'services'>('credits');
+  const [activeTab, setActiveTab] = useState<'credits' | 'services'>(initialTab);
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [plans, setPlans] = useState<PricingPlan[]>(PRICING_PLANS);
   const [services, setServices] = useState<ConsultingService[]>(CONSULTING_SERVICES);
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan>(PRICING_PLANS[1]); // Default to 5-pack

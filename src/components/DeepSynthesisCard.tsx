@@ -23,11 +23,13 @@ import {
 interface DeepSynthesisCardProps {
   calculation: NatalChartCalculationResult;
   onOpenCreditsModal?: () => void;
+  onOpenSubscriptionModal?: () => void;
 }
 
 export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
   calculation,
   onOpenCreditsModal,
+  onOpenSubscriptionModal,
 }) => {
   const cacheKey = `faro_reading_${calculation.birthData.name}_${calculation.birthData.birthDate}_${calculation.birthData.birthTime}`;
 
@@ -510,6 +512,28 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
           {/* Reading Text Container with Full Markdown Rendering */}
           <div className="p-6 bg-stone-950 rounded-xl border border-stone-800 text-stone-200 shadow-inner print:bg-white print:text-black print:border-none">
             <MarkdownRenderer content={aiReading} />
+          </div>
+
+          {/* Callout de Suscripción a Tránsitos Diarios (Punto 4 con Google Assistant) */}
+          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-amber-950/40 via-stone-900 to-indigo-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                ¿Te gustaría recibir el Punto 4 de esta lectura cada mañana?
+              </span>
+              <p className="text-xs text-stone-300 leading-relaxed">
+                El análisis diario de tránsitos y clima temporal puede ser generado cada madrugada a la 1:00 AM para tu altavoz o móvil Google. Solo di: <strong className="text-white">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong>.
+              </p>
+            </div>
+            {onOpenSubscriptionModal && (
+              <button
+                type="button"
+                onClick={onOpenSubscriptionModal}
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+              >
+                <span>Activar Faro Diario ($7.99/mes)</span>
+              </button>
+            )}
           </div>
         </div>
       )}

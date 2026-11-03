@@ -27,6 +27,11 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
+  Mic,
+  Headphones,
+  PlusCircle,
+  ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 
 const DEFAULT_BIRTH_DATA: BirthData = {
@@ -48,6 +53,7 @@ export default function App() {
   const [isSwissPrecision, setIsSwissPrecision] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(() => getCreditBalance());
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [creditModalTab, setCreditModalTab] = useState<'credits' | 'services'>('credits');
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('terms');
   const [paymentNotice, setPaymentNotice] = useState<{
@@ -60,6 +66,11 @@ export default function App() {
   const openLegalModal = (tab: LegalTab = 'terms') => {
     setLegalModalTab(tab);
     setIsLegalModalOpen(true);
+  };
+
+  const openSubscriptionModal = (tab: 'credits' | 'services' = 'services') => {
+    setCreditModalTab(tab);
+    setIsCreditModalOpen(true);
   };
 
   // Detect Polar.sh return / success redirect in URL params
@@ -191,7 +202,7 @@ export default function App() {
     { id: 'septenio', label: 'Septenio Biográfico', icon: <Clock className="w-4 h-4" />, badge: `S${calculationResult.currentSeptenio.number}` },
     { id: 'lunarNodes', label: 'Nodo Lunar & Dirección', icon: <Compass className="w-4 h-4" />, badge: calculationResult.lunarNodes.northNode.sign },
     { id: 'yearOfLife', label: 'Año de Vida', icon: <SunMedium className="w-4 h-4" />, badge: `Año ${calculationResult.yearOfLife.currentYearOfLife}` },
-    { id: 'transits', label: 'Tránsitos Planetarios', icon: <Sparkles className="w-4 h-4" />, badge: `${calculationResult.currentTransits.activeTransits.length}` },
+    { id: 'transits', label: 'Tránsitos Diarios', icon: <Sparkles className="w-4 h-4" />, badge: 'Voz • Ok Google' },
     { id: 'synthesis', label: 'Lectura Integral', icon: <BookOpen className="w-4 h-4" />, badge: 'IA' },
     { id: 'overview', label: 'Planetas & Casas', icon: <TableProperties className="w-4 h-4" /> },
   ];
@@ -201,9 +212,50 @@ export default function App() {
       <Header
         hasCalculated={true}
         creditBalance={creditBalance}
-        onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+        onOpenCreditsModal={() => openSubscriptionModal('credits')}
         onOpenLegal={() => openLegalModal('terms')}
       />
+
+      {/* Top Banner de Anuncio: Lecturas Diarias y Google Assistant */}
+      <div className="bg-gradient-to-r from-amber-950/80 via-stone-900 to-indigo-950/80 border-b border-amber-500/30 px-4 py-2.5 text-xs text-stone-300">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-2.5 w-2.5 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wide">
+              Ok Google
+            </span>
+            <p className="text-stone-200">
+              <strong className="text-amber-300">Lectura Diaria de Tránsitos (Punto 4):</strong> Di en tu altavoz o móvil{' '}
+              <span className="font-semibold text-white bg-stone-950/80 px-2 py-0.5 rounded border border-stone-700">
+                &ldquo;Ok Google, habla con Faro Biográfico&rdquo;
+              </span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('transits')}
+              className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <span>Ver Tránsitos de Hoy</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-stone-700">|</span>
+            <button
+              type="button"
+              onClick={() => openSubscriptionModal('services')}
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Headphones className="w-3 h-3 text-amber-400" />
+              <span>Suscripción ($7.99/mes)</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Formulario de Entrada */}
@@ -492,6 +544,173 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Catálogo de Lecturas y Servicios Biográficos Disponibles */}
+              <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-6 shadow-xl space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-800">
+                  <div>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Ecosistema Faro Biográfico
+                    </span>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100 mt-2">
+                      Catálogo de Lecturas y Servicios Disponibles
+                    </h2>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      Explora todas las formas de acceder a tu mapa vital: desde audios matutinos por voz con Google Assistant hasta reportes completos con IA y consultoría 1 a 1.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openSubscriptionModal('credits')}
+                    className="self-start sm:self-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Ver Planes & Monedero</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* 1. Lectura Diaria Google Assistant */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 to-stone-950 hover:border-amber-500/60 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Suscripción Mensual
+                        </span>
+                        <Mic className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Lectura Diaria de Tránsitos (Ok Google)
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Punto 4 de la lectura: tránsitos activos, aspectos benéficos y desafíos. Generado a la 1:00 AM para reproducción instantánea por voz.
+                      </p>
+                      <div className="text-amber-300 font-bold text-sm pt-1">
+                        $7.99 USD <span className="text-[11px] font-normal text-stone-400">/ mes</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('services')}
+                        className="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Headphones className="w-3.5 h-3.5" />
+                        <span>Suscribirme</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('transits')}
+                        className="w-full py-1.5 px-3 rounded-lg bg-stone-950 hover:bg-stone-800 border border-stone-800 text-[11px] text-stone-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>Ver Tránsitos de Hoy</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Informe Integral con IA */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                          Pago por Reporte
+                        </span>
+                        <BookOpen className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Informe Integral de Trayectoria (IA)
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Los 5 puntos interpretativos completos: Eje Nodal, Septenios, Profeción Anual, Tránsitos y Síntesis del Alma con exportación a PDF.
+                      </p>
+                      <div className="text-purple-300 font-bold text-sm pt-1">
+                        1 Crédito <span className="text-[11px] font-normal text-stone-400">(¡5 Gratis de bienvenida!)</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('synthesis')}
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-stone-800 border border-stone-700 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Generar con IA</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('credits')}
+                        className="w-full py-1.5 px-3 rounded-lg bg-stone-950 hover:bg-stone-800 border border-stone-800 text-[11px] text-stone-400 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>Packs desde $1.99/u</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Rectificación Artesanal */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          Servicio Artesanal
+                        </span>
+                        <Clock className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Rectificación Biográfica de Carta Natal
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Determinación exacta al minuto de tu hora de nacimiento mediante técnica de atacires y eventos pasados. Entrega en 3 días.
+                      </p>
+                      <div className="text-emerald-300 font-bold text-sm pt-1">
+                        $80.00 USD <span className="text-[11px] font-normal text-stone-400">(pago único)</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('services')}
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-stone-800 border border-stone-700 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Solicitar Rectificación</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Consultas 1 a 1 */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                          Sesión Individual
+                        </span>
+                        <MessageSquare className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Consultas Privadas 1 a 1
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Sesión personalizada (60-90 min) de acompañamiento en crisis evolutivas, septenios, vocación y sentido vital con agenda previa.
+                      </p>
+                      <div className="text-cyan-300 font-bold text-sm pt-1">
+                        Tarifa acordada <span className="text-[11px] font-normal text-stone-400">(vía Polar.sh)</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('services')}
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-stone-800 border border-stone-700 text-cyan-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Coordinar Cita</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -520,13 +739,15 @@ export default function App() {
               transitDate={calculationResult.currentTransits.transitDate}
               transitPlanets={calculationResult.currentTransits.transitPlanets}
               activeTransits={calculationResult.currentTransits.activeTransits}
+              onOpenSubscriptionModal={() => openSubscriptionModal('services')}
             />
           )}
 
           {activeTab === 'synthesis' && (
             <DeepSynthesisCard
               calculation={calculationResult}
-              onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+              onOpenCreditsModal={() => openSubscriptionModal('credits')}
+              onOpenSubscriptionModal={() => openSubscriptionModal('services')}
             />
           )}
         </div>
@@ -538,6 +759,7 @@ export default function App() {
         onClose={() => setIsCreditModalOpen(false)}
         onCreditsUpdated={(newBal) => setCreditBalance(newBal)}
         onOpenLegal={openLegalModal}
+        initialTab={creditModalTab}
       />
 
       {/* Modal de Centro Legal, Términos y Cumplimiento (Compliance / MoR) */}
