@@ -15,6 +15,8 @@ import { reportDeveloperError, getDeveloperErrorRegistry } from '../lib/errorLog
 import { analyzeBiographicalSeptenios } from '../lib/gemini.js';
 import { analyzeBiographicalSeptenios as analyzeBiographicalSepteniosDeepSeek } from '../lib/deepseek.js';
 import { upsertBiografia, getUserById } from '../lib/db.js';
+import { createAssistantRouter } from './assistant/webhook.js';
+import { runDailyAudioGeneration } from './scheduler/dailyAudioScheduler.js';
 
 dotenv.config();
 
@@ -544,6 +546,27 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
         'El servicio de Inteligencia Artificial no pudo completar la lectura en este momento (tiempo de espera o error de servidor). Tu crédito NO ha sido consumido y tu saldo permanece intacto. Por favor, reintenta en unos instantes.',
       creditConsumed: false,
     });
+  }
+});
+
+// Google Assistant Fulfillment Webhook
+app.use('/api/assistant/webhook', createAssistantRouter());
+
+// Endpoint para disparar manualmente o via cron la generación de audio diario
+app.post(['/api/scheduler/run-daily', '/scheduler/run-daily'], async (req, res) => {
+  const secret = process.env.SCHEDULER_SECRET;
+  if (secret) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${secret}`) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+  }
+  try {
+    const targetDate = req.body?.date || undefined;
+    const result = await runDailyAudioGeneration(targetDate);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
