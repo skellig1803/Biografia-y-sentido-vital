@@ -139,11 +139,11 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
     type: 'custom',
     typeLabel: 'Tarifa acordada / Enlace directo Polar.sh',
     priceUsd: null,
-    deliverable: 'Agenda externa (WhatsApp / Cal.com) con cobro acordado enviado a través de enlace directo de Polar.sh',
+    deliverable: 'Coordinación por mensajes directos (WhatsApp / Email) con cobro acordado enviado a través de enlace directo de Polar.sh',
     features: [
       'Sesión individual personalizada 1 a 1 (60 - 90 min)',
       'Profundización en septenios, crisis evolutivas y dirección vocacional',
-      'Coordinación directa de calendario vía WhatsApp / Cal.com',
+      'Coordinación directa de sesión vía mensajes directos (WhatsApp / Email)',
       'Cobro seguro y flexible con enlace personalizado emitido en Polar.sh',
     ],
   },

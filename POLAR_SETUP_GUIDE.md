@@ -68,7 +68,7 @@ En el panel de Polar, ve a la sección **Products** > **New Product**. Crea los 
   > Servicio técnico individualizado de ajuste y verificación horaria mediante técnica de atacires y cronología vital verificable. Entrega estructurada en 3 días laborables.
 
 #### Servicio 6: Consultas Privadas Individuales
-* **Coordinación:** Enlace de cobro personalizado o botón directo generado desde Polar tras acordar la sesión por agenda (WhatsApp o Cal.com).
+* **Coordinación:** Enlace de cobro personalizado o botón directo generado desde Polar tras acordar la sesión por mensajes directos (WhatsApp o Email).
 
 ---
 
