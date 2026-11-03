@@ -113,7 +113,7 @@ export function isQuotaExhaustedError(err: unknown): boolean {
 /**
  * Genera el audio diario del Faro Biográfico para un usuario dado.
  *
- * El texto síntesis del Punto 4 se convierte en voz española cálida usando
+ * El texto síntesis de los Tránsitos Diarios con IA se convierte en voz española cálida usando
  * el modelo Gemini TTS. Se realizan hasta 3 intentos con un intervalo de
  * 5 segundos y un timeout de 120 segundos por intento. Si se detecta
  * agotamiento de tokens / cuota (429 / RESOURCE_EXHAUSTED), se interrumpe

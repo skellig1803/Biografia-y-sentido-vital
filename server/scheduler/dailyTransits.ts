@@ -37,14 +37,14 @@ export interface Aspecto {
   esBenefic: boolean;
 }
 
-/** Resultado completo del cálculo de tránsitos diarios para el Punto 4. */
+/** Resultado completo del cálculo de tránsitos diarios con IA. */
 export interface DailyTransitsResult {
   /** Fecha del cálculo en formato 'YYYY-MM-DD'. */
   fecha: string;
   transitosActivos: TransitoActivo[];
   aspectosBeneficos: Aspecto[];
   aspectosConflictivos: Aspecto[];
-  /** Texto narrativo en español listo para usar en el Punto 4 del Faro. */
+  /** Texto narrativo en español listo para usar en los Tránsitos Diarios del Faro. */
   textoPunto4: string;
 }
 
@@ -208,7 +208,7 @@ function significadoConflict(tipo: string, transitante: string, natal: string): 
 // ---------------------------------------------------------------------------
 
 /**
- * Calcula los tránsitos diarios del Punto 4 del Faro Biográfico para un
+ * Calcula los tránsitos diarios con IA del Faro Biográfico para un
  * usuario dado y una fecha específica.
  *
  * @param user  - Datos del usuario (nacimiento, timezone, etc.)
@@ -327,7 +327,7 @@ export async function computeDailyTransitsPoint4(
     }
   }
 
-  // ── 7. Construir texto narrativo del Punto 4 ──────────────────────────────
+  // ── 7. Construir texto narrativo de Tránsitos Diarios ──────────────────────────
   const fechaFormateada = fecha.toLocaleDateString('es-ES', {
     weekday: 'long',
     day: 'numeric',

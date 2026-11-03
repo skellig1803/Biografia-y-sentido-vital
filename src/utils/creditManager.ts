@@ -101,7 +101,7 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
   {
     id: 'service_faro_diario',
     name: 'Faro Diario - Suscripción Google Assistant & Audio PWA',
-    tagline: 'Punto 4 de tu lectura integrado con IA: Tránsitos, aspectos benéficos y retos diarios',
+    tagline: 'Tránsitos diarios con IA: aspectos benéficos y retos de la jornada',
     type: 'subscription',
     typeLabel: 'Suscripción Mensual ($7.99 USD/mes)',
     priceUsd: 7.99,
@@ -109,7 +109,7 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
     netEstimateUsd: 6.79,
     deliverable: 'Audio generado diariamente de acuerdo a tus tránsitos personales para Google Assistant ("Ok Google, habla con Faro Biográfico") y reproductor web/PWA',
     features: [
-      'Punto 4 de la lectura integrada con IA entregado cada día a tu despertar',
+      'Lectura de tránsitos diarios con IA entregada cada día a tu despertar',
       'Análisis diario de tránsitos activos, aspectos benéficos y conflictos a transformar',
       'Audio generado diariamente de acuerdo a tus tránsitos personales con reproducción instantánea',
       'Compatible con Google Assistant: "Ok Google, habla con Faro Biográfico"',

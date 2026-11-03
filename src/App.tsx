@@ -228,7 +228,7 @@ export default function App() {
               Ok Google
             </span>
             <p className="text-stone-200">
-              <strong className="text-amber-300">Lectura Diaria de Tránsitos (Punto 4):</strong> Di en tu altavoz o móvil{' '}
+              <strong className="text-amber-300">Lectura Diaria de Tránsitos:</strong> Di en tu altavoz o móvil{' '}
               <span className="font-semibold text-white bg-stone-950/80 px-2 py-0.5 rounded border border-stone-700">
                 &ldquo;Ok Google, habla con Faro Biográfico&rdquo;
               </span>
@@ -584,7 +584,7 @@ export default function App() {
                         Lectura Diaria de Tránsitos (Ok Google)
                       </h3>
                       <p className="text-[11px] text-stone-400 leading-relaxed">
-                        Punto 4 de la lectura: tránsitos activos, aspectos benéficos y desafíos. Audio generado diariamente de acuerdo a tus tránsitos personales para reproducción instantánea por voz.
+                        Tránsitos activos, aspectos benéficos y desafíos diarios con IA. Audio generado diariamente de acuerdo a tus tránsitos personales para reproducción instantánea por voz.
                       </p>
                       <div className="text-amber-300 font-bold text-sm pt-1">
                         $7.99 USD <span className="text-[11px] font-normal text-stone-400">/ mes</span>

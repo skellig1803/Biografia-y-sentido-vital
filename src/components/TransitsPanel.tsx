@@ -55,7 +55,7 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-indigo-400" />
-                Punto 4: Tránsitos Diarios con IA
+                Tránsitos Diarios con IA
               </span>
             </div>
             <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-100 flex items-center gap-2">

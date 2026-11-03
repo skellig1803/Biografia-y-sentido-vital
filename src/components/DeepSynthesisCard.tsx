@@ -514,12 +514,12 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
             <MarkdownRenderer content={aiReading} />
           </div>
 
-          {/* Callout de Suscripción a Tránsitos Diarios (Punto 4 con Google Assistant) */}
+          {/* Callout de Suscripción a Tránsitos Diarios con Google Assistant */}
           <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-amber-950/40 via-stone-900 to-indigo-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
-                ¿Te gustaría recibir el Punto 4 de esta lectura cada mañana?
+                ¿Te gustaría recibir los Tránsitos Diarios con IA cada mañana?
               </span>
               <p className="text-xs text-stone-300 leading-relaxed">
                 El análisis de tránsitos y clima temporal es generado diariamente de acuerdo a tus tránsitos personales para tu altavoz o móvil Google. Solo di: <strong className="text-white">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong>.
