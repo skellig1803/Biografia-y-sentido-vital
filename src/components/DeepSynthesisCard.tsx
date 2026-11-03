@@ -522,7 +522,7 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
                 ¿Te gustaría recibir el Punto 4 de esta lectura cada mañana?
               </span>
               <p className="text-xs text-stone-300 leading-relaxed">
-                El análisis diario de tránsitos y clima temporal puede ser generado cada madrugada a la 1:00 AM para tu altavoz o móvil Google. Solo di: <strong className="text-white">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong>.
+                El análisis de tránsitos y clima temporal es generado diariamente de acuerdo a tus tránsitos personales para tu altavoz o móvil Google. Solo di: <strong className="text-white">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong>.
               </p>
             </div>
             {onOpenSubscriptionModal && (

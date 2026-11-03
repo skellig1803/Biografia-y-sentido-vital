@@ -63,7 +63,7 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
               <span className="text-amber-400 underline decoration-amber-500/50 underline-offset-4">&ldquo;Ok Google&rdquo;</span>
             </h3>
             <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
-              Cada madrugada a la <strong>1:00 AM</strong> de tu zona horaria, la IA calcula los tránsitos astronómicos sobre tu carta natal y pregenera tu audio personalizado. Así, al despertar en cualquier altavoz o móvil con Google Assistant, solo dices <em>&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</em> y se reproduce al instante sin esperas ni timeouts.
+              La IA calcula los tránsitos astronómicos sobre tu carta natal y genera tu audio diariamente de acuerdo a tus tránsitos personales. Así, en cualquier altavoz o móvil con Google Assistant, solo dices <em>&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</em> y se reproduce al instante.
             </p>
           </div>
 
@@ -105,10 +105,10 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
             <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
               <span className="text-amber-400 font-bold flex items-center gap-1.5">
                 <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[11px]">2</span>
-                Pregeneración 1:00 AM
+                Generación Diaria Personalizada
               </span>
               <p className="text-stone-300 text-[11px] leading-relaxed">
-                El motor nocturno procesa tus aspectos benéficos y tensiones del día con Gemini TTS mientras duermes, evitando timeouts.
+                El motor de IA procesa tus aspectos benéficos y tensiones del día de acuerdo a tus tránsitos personales con Gemini TTS, listo para reproducirse.
               </p>
             </div>
 

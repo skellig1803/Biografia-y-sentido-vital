@@ -121,8 +121,8 @@ export async function handleDailyReadingIntent(
   // Sin entrada o en estado de error
   return {
     speech:
-      '<speak>Tu lectura del día estará disponible a partir de la 1 de la madrugada de tu zona horaria. Por favor intenta más tarde.</speak>',
-    text: 'Tu lectura estará disponible a partir de la 1:00 AM de tu zona horaria.',
+      '<speak>Tu lectura del día de acuerdo a tus tránsitos personales se está preparando. Por favor intenta más tarde.</speak>',
+    text: 'Tu lectura del día generada de acuerdo a tus tránsitos personales estará disponible en breve.',
     endConversation: false,
   };
 }

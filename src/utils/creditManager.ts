@@ -107,11 +107,11 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
     priceUsd: 7.99,
     billingInterval: 'mes',
     netEstimateUsd: 6.79,
-    deliverable: 'Audio diario pregenerado a la 1:00 AM para Google Assistant ("Ok Google, habla con Faro Biográfico") y reproductor web/PWA',
+    deliverable: 'Audio generado diariamente de acuerdo a tus tránsitos personales para Google Assistant ("Ok Google, habla con Faro Biográfico") y reproductor web/PWA',
     features: [
       'Punto 4 de la lectura integrada con IA entregado cada día a tu despertar',
       'Análisis diario de tránsitos activos, aspectos benéficos y conflictos a transformar',
-      'Pregeneración nocturna a la 1:00 AM: reproducción instantánea sin esperas ni timeouts',
+      'Audio generado diariamente de acuerdo a tus tránsitos personales con reproducción instantánea',
       'Compatible con Google Assistant: "Ok Google, habla con Faro Biográfico"',
       'Renovación mensual flexible vía Polar.sh (cancela con un clic en cualquier momento)',
     ],
