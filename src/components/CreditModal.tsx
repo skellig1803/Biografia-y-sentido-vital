@@ -33,6 +33,7 @@ interface CreditModalProps {
   onCreditsUpdated?: (newBalance: number) => void;
   onOpenLegal?: (tab?: 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide') => void;
   initialTab?: 'credits' | 'services';
+  onRequestSubscribeFaroDiario?: (checkoutUrl?: string | null) => void;
 }
 
 export const CreditModal: React.FC<CreditModalProps> = ({
@@ -41,6 +42,7 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   onCreditsUpdated,
   onOpenLegal,
   initialTab = 'credits',
+  onRequestSubscribeFaroDiario,
 }) => {
   const [activeTab, setActiveTab] = useState<'credits' | 'services'>(initialTab);
 
@@ -133,17 +135,24 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   };
 
   const handleServiceAction = (service: ConsultingService) => {
+    if (service.id === 'service_faro_diario') {
+      if (onRequestSubscribeFaroDiario) {
+        onRequestSubscribeFaroDiario(service.checkoutUrl);
+        return;
+      }
+    }
+
     if (service.checkoutUrl) {
       window.open(service.checkoutUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
     if (service.id === 'service_consultas') {
-      const calendarLink =
+      const waLink =
         service.externalLink ||
-        'https://wa.me/?text=' +
+        'https://wa.me/593999429478?text=' +
           encodeURIComponent('Hola, me gustaría coordinar una Consulta Privada Individual de Biografía Vital.');
-      window.open(calendarLink, '_blank', 'noopener,noreferrer');
+      window.open(waLink, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -488,10 +497,10 @@ export const CreditModal: React.FC<CreditModalProps> = ({
                       {service.type === 'custom' && <MessageSquare className="w-3.5 h-3.5" />}
                       <span>
                         {service.type === 'subscription'
-                          ? 'Suscribirse vía Polar.sh'
+                          ? 'Suscribirme ($7.99/mes)'
                           : service.type === 'one_time'
                           ? 'Solicitar Rectificación ($80)'
-                          : 'Coordinar Cita (Agenda)'}
+                          : 'Escribir por WhatsApp (+593 99 942 9478)'}
                       </span>
                       <ExternalLink className="w-3 h-3 ml-0.5" />
                     </button>

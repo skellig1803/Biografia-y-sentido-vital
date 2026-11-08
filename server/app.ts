@@ -14,14 +14,23 @@ import {
 import { reportDeveloperError, getDeveloperErrorRegistry } from '../lib/errorLogger.js';
 import { analyzeBiographicalSeptenios } from '../lib/gemini.js';
 import { analyzeBiographicalSeptenios as analyzeBiographicalSepteniosDeepSeek } from '../lib/deepseek.js';
-import { upsertBiografia, getUserById } from '../lib/db.js';
+import { upsertBiografia, getUserById, upsertUserProfile, getUserByEmailOrWhatsApp } from '../lib/db.js';
 import { createAssistantRouter } from './assistant/webhook.js';
 import { runDailyAudioGeneration } from './scheduler/dailyAudioScheduler.js';
+import { computeDailyTransitsPoint4 } from './scheduler/dailyTransits.js';
+import { generateDailyAudio } from './scheduler/audioGenerator.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT =
+  process.env.APP_PORT
+    ? parseInt(process.env.APP_PORT, 10)
+    : process.env.DEFAULT_APP_PORT
+    ? parseInt(process.env.DEFAULT_APP_PORT, 10)
+    : process.env.PORT && process.env.PORT !== '8080'
+    ? parseInt(process.env.PORT, 10)
+    : 3000;
 
 // Prevent express.json from hanging when run inside serverless environments (e.g. Vercel)
 // where req.body has already been pre-parsed and the stream ended.
@@ -153,20 +162,20 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
     services: [
       {
         id: 'service_faro_diario',
-        name: 'Faro Diario - Suscripción Matutina (OK Google / Audio PWA)',
-        tagline: 'Audio de sincronización vital matutino de 45 segundos',
+        name: 'Faro Diario - Suscripción Audio WhatsApp & Web',
+        tagline: 'Audio de sincronización vital matutino generado con IA',
         type: 'subscription',
         typeLabel: 'Suscripción Mensual',
         price: 7.99,
         billingInterval: 'mes',
         netEstimateUsd: 6.79,
-        deliverable: 'Audio matutino personalizado de 45 seg (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
         checkoutUrl: process.env.POLAR_CHECKOUT_URL_FARO_DIARIO || null,
+        deliverable: 'Nota de voz matutina en WhatsApp y reproductor web privado (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
         features: [
-          'Audio matutino personalizado de 45 seg generado cada día',
+          'Nota de voz matutina personalizada generada cada día con IA',
           'Síntesis activa: Nodo Lunar + Septenio + Nodo Anual + Tránsitos diarios',
-          'Integración para PWA móvil y rutinas de altavoz inteligente / voz',
-          'Suscripción mensual flexible gestionada por Polar.sh',
+          'Entrega matutina directa a tu WhatsApp y reproductor web',
+          'Suscripción mensual recurrente gestionada por Polar.sh',
         ],
       },
       {
@@ -191,16 +200,16 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         name: 'Consultas Privadas Individuales',
         tagline: 'Sesión personalizada 1 a 1 de orientación y desarrollo',
         type: 'custom',
-        typeLabel: 'Tarifa acordada / Enlace directo Polar.sh',
+        typeLabel: 'Tarifa acordada / Contacto directo WhatsApp',
         price: null,
-        deliverable: 'Coordinación por mensajes directos (WhatsApp / Email) con cobro acordado enviado a través de enlace directo de Polar.sh',
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_CONSULTAS || null,
-        calendarUrl: process.env.CONSULTING_CALENDAR_URL || null,
+        deliverable: 'Coordinación directa por WhatsApp (+593 99 942 9478) para agendar tu sesión personalizada',
+        checkoutUrl: null,
+        calendarUrl: 'https://wa.me/593999429478?text=Hola%2C%20me%20gustar%C3%ADa%20coordinar%20una%20Consulta%20Privada%20Individual%20de%20Biograf%C3%ADa%20Vital.',
         features: [
           'Sesión individual personalizada 1 a 1 (60 - 90 min)',
           'Profundización en septenios, crisis evolutivas y dirección vocacional',
-          'Coordinación directa de sesión vía mensajes directos (WhatsApp / Email)',
-          'Cobro seguro y flexible con enlace personalizado emitido en Polar.sh',
+          'Contacto directo vía WhatsApp (+593 99 942 9478)',
+          'Horarios flexibles y atención personalizada',
         ],
       },
     ],
@@ -256,6 +265,121 @@ app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], (req,
   } catch (err: any) {
     console.error('Error in Polar webhook:', err);
     return res.status(500).json({ error: 'Error procesando webhook Polar' });
+  }
+});
+
+// Guardar o actualizar perfil natal del usuario + WhatsApp (antes de suscribirse o para actualizar datos)
+app.post(['/api/user/profile', '/user/profile'], async (req, res) => {
+  try {
+    const { email, nombre, name, fecha_nacimiento, birthDate, hora_nacimiento, birthTime, lugar_nacimiento, placeName, latitude, lat, longitude, lng, timezone, ianaTimeZone, whatsapp } = req.body || {};
+    
+    const userEmail = String(email || '').trim().toLowerCase();
+    if (!userEmail) {
+      return res.status(400).json({ success: false, error: 'El correo electrónico es requerido para vincular tu suscripción.' });
+    }
+
+    const birthDateVal = fecha_nacimiento || birthDate;
+    if (!birthDateVal) {
+      return res.status(400).json({ success: false, error: 'La fecha de nacimiento es requerida.' });
+    }
+
+    const saved = await upsertUserProfile({
+      email: userEmail,
+      nombre: nombre || name || 'Suscriptor',
+      fecha_nacimiento: birthDateVal,
+      hora_nacimiento: hora_nacimiento || birthTime || '12:00',
+      lugar_nacimiento: lugar_nacimiento || placeName || 'Desconocido',
+      latitude: typeof latitude === 'number' ? latitude : (lat ? Number(lat) : null),
+      longitude: typeof longitude === 'number' ? longitude : (lng ? Number(lng) : null),
+      timezone: timezone || ianaTimeZone || 'America/Bogota',
+      whatsapp: whatsapp || null,
+    });
+
+    return res.json({ success: true, user: saved });
+  } catch (error: any) {
+    console.error('Error al guardar perfil de usuario:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al guardar perfil' });
+  }
+});
+
+// Recuperar perfil natal del usuario por Email o por WhatsApp (al ingresar desde otro dispositivo)
+app.get(['/api/user/profile', '/user/profile'], async (req, res) => {
+  try {
+    const query = (req.query.q || req.query.email || req.query.whatsapp || req.query.identifier) as string;
+    if (!query || query.trim().length < 3) {
+      return res.status(400).json({ success: false, error: 'Ingresa un correo o número de WhatsApp válido.' });
+    }
+
+    const user = await getUserByEmailOrWhatsApp(query);
+    if (!user) {
+      return res.json({ success: true, found: false, message: 'No se encontró un perfil registrado con esos datos.' });
+    }
+
+    return res.json({
+      success: true,
+      found: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        nombre: user.nombre,
+        fecha_nacimiento: user.fecha_nacimiento,
+        hora_nacimiento: user.hora_nacimiento,
+        lugar_nacimiento: user.lugar_nacimiento,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        timezone: user.timezone,
+        whatsapp: user.whatsapp,
+        suscripcion_activa: Boolean(user.suscripcion_activa),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error al consultar perfil de usuario:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al buscar perfil' });
+  }
+});
+
+// Endpoint de prueba instantánea para generar y escuchar el audio diario con los datos del usuario
+app.post(['/api/scheduler/test-audio', '/scheduler/test-audio'], async (req, res) => {
+  try {
+    const { nombre, fecha_nacimiento, hora_nacimiento, lugar_nacimiento, latitude, longitude, timezone } = req.body || {};
+
+    const userForCalc = {
+      id: 'test_user',
+      nombre: nombre || 'Viajero de la Vida',
+      fecha_nacimiento: fecha_nacimiento || '1990-05-15',
+      hora_nacimiento: hora_nacimiento || '12:00',
+      lugar_nacimiento: lugar_nacimiento || 'Madrid, España',
+      latitude: typeof latitude === 'number' ? latitude : 40.4168,
+      longitude: typeof longitude === 'number' ? longitude : -3.7038,
+      timezone: timezone || 'Europe/Madrid',
+    };
+
+    const targetDate = new Date();
+    // 1. Calcular tránsitos astronómicos del día con Swiss Ephemeris
+    const transits = await computeDailyTransitsPoint4(userForCalc, targetDate);
+
+    // 2. Generar el audio de voz con Gemini TTS
+    const { audioBuffer, textoGenerado } = await generateDailyAudio(userForCalc, transits);
+
+    // Convertir el buffer a Base64 para reproducción inmediata en el navegador
+    const base64Audio = audioBuffer.toString('base64');
+    const audioDataUrl = `data:audio/wav;base64,${base64Audio}`;
+
+    return res.json({
+      success: true,
+      textoPunto4: transits.textoPunto4,
+      textoGenerado,
+      audioDataUrl,
+      aspectosBeneficos: transits.aspectosBeneficos,
+      aspectosConflictivos: transits.aspectosConflictivos,
+      fecha: transits.fecha,
+    });
+  } catch (error: any) {
+    console.error('Error en /api/scheduler/test-audio:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Error al generar audio de prueba',
+    });
   }
 });
 
@@ -580,7 +704,10 @@ export async function startServer() {
       console.log('Starting server in DEVELOPMENT mode with Vite middleware...');
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: {
+          middlewareMode: true,
+          hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+        },
         appType: 'custom',
       });
       app.use(vite.middlewares);

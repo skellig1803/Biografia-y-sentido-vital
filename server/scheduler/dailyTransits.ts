@@ -15,6 +15,12 @@ export interface UserForScheduler {
   hora_nacimiento?: string;
   /** Ciudad o lugar de nacimiento (opcional). */
   lugar_nacimiento?: string;
+  /** Latitud natal en grados decimales */
+  latitude?: number;
+  /** Longitud natal en grados decimales */
+  longitude?: number;
+  /** Teléfono de WhatsApp (con código de país) */
+  whatsapp?: string;
   /** IANA timezone string, e.g. 'America/Mexico_City'. */
   timezone: string;
 }
@@ -44,8 +50,10 @@ export interface DailyTransitsResult {
   transitosActivos: TransitoActivo[];
   aspectosBeneficos: Aspecto[];
   aspectosConflictivos: Aspecto[];
-  /** Texto narrativo en español listo para usar en los Tránsitos Diarios del Faro. */
+  /** Texto narrativo detallado en español para el reporte escrito. */
   textoPunto4: string;
+  /** Síntesis hablada optimizada para audio de 45 a 60 segundos (máximo 85-95 palabras). */
+  sintesisAudioMatutino: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -222,10 +230,9 @@ export async function computeDailyTransitsPoint4(
   // ── 1. Preparar parámetros comunes ────────────────────────────────────────
   const tzOffset = estimateTimezoneOffset(user.timezone, fecha);
 
-  // Coordenadas por defecto (0,0) si no se conocen; en producción se resuelven
-  // mediante geocodificación a partir de lugar_nacimiento.
-  const defaultLat = 0;
-  const defaultLon = 0;
+  // Coordenadas geográficas natales del usuario (con fallback si no se especificaron)
+  const userLat = typeof user.latitude === 'number' && !isNaN(user.latitude) ? user.latitude : 0;
+  const userLon = typeof user.longitude === 'number' && !isNaN(user.longitude) ? user.longitude : 0;
 
   // ── 2. Carta natal del usuario ────────────────────────────────────────────
   const natalHora = user.hora_nacimiento ?? '12:00';
@@ -235,8 +242,8 @@ export async function computeDailyTransitsPoint4(
     natalHora,
     user.timezone,
     tzOffset,
-    defaultLat,
-    defaultLon,
+    userLat,
+    userLon,
   );
   const natalChart = computeSwissEphemerisChart(natalBirthData);
   const natalPlanets: PlanetPosition[] = natalChart.planets;
@@ -249,8 +256,8 @@ export async function computeDailyTransitsPoint4(
     '12:00',
     user.timezone,
     tzOffset,
-    defaultLat,
-    defaultLon,
+    userLat,
+    userLon,
   );
   const transitChart = computeSwissEphemerisChart(transitBirthData);
 
@@ -411,11 +418,38 @@ export async function computeDailyTransitsPoint4(
     `  ${orientacion}`,
   ].join('\n');
 
+  // ── 8. Construir síntesis hablada para nota de voz (máx. 85-95 palabras, < 1 minuto) ──
+  const lunaTransito = transitosActivos.find((t) => t.planeta === 'Luna');
+  const lunaDesc = lunaTransito
+    ? `la Luna transita por ${lunaTransito.signo} en tu casa ${lunaTransito.casa}`
+    : 'el firmamento te acompaña con serenidad';
+
+  let mensajeFocal: string;
+  if (hayBenef && hayConflict) {
+    const b = aspectosBeneficos[0];
+    const c = aspectosConflictivos[0];
+    mensajeFocal = `Hoy, ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal abre una valiosa ventana de gracia y avance para tus iniciativas. Al mismo tiempo, modula la tensión de ${c.planetaTransitante} con tu ${c.planetaNatal}: mantén la calma y evita reaccionar con prisa.`;
+  } else if (hayBenef) {
+    const b = aspectosBeneficos[0];
+    mensajeFocal = `Hoy cuentas con un clima astral favorable: ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal activa tu claridad e impulso creativo. Es un momento propicio para actuar y conectar con tus metas.`;
+  } else if (hayConflict) {
+    const c = aspectosConflictivos[0];
+    mensajeFocal = `El cielo de hoy te invita a la templanza: la tensión de ${c.planetaTransitante} con tu ${c.planetaNatal} natal pide moderación y firmeza. Usa cualquier fricción como oportunidad para ordenar tus prioridades.`;
+  } else {
+    mensajeFocal = `Hoy predomina una calma fértil en tus tránsitos. Con ${lunaDesc}, es un día idóneo para avanzar con constancia en tus labores cotidianas y cultivar tu bienestar.`;
+  }
+
+  const sintesisAudioMatutino =
+    `Buenos días, ${user.nombre}. Tu faro para hoy, ${fechaFormateada}: ` +
+    `${mensajeFocal} ` +
+    `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`;
+
   return {
     fecha: fechaStr,
     transitosActivos,
     aspectosBeneficos,
     aspectosConflictivos,
     textoPunto4,
+    sintesisAudioMatutino,
   };
 }

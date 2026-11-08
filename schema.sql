@@ -15,13 +15,24 @@ CREATE TABLE IF NOT EXISTS public.users (
     fecha_nacimiento DATE NOT NULL,
     hora_nacimiento TIME NULL,
     lugar_nacimiento TEXT NULL,
+    latitude DOUBLE PRECISION NULL,
+    longitude DOUBLE PRECISION NULL,
+    timezone TEXT NOT NULL DEFAULT 'America/Bogota',
+    whatsapp TEXT NULL,
     suscripcion_activa BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Índice para búsquedas rápidas por correo electrónico
+-- Migraciones idempotentes para bases de datos existentes
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'America/Bogota';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS whatsapp TEXT NULL;
+
+-- Índices para búsquedas rápidas por correo electrónico y WhatsApp
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users (email);
+CREATE INDEX IF NOT EXISTS idx_users_whatsapp ON public.users (whatsapp);
 
 -- ========================================================
 -- 2. Tabla: biografias

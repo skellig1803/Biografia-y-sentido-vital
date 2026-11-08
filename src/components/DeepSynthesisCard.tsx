@@ -514,22 +514,22 @@ export const DeepSynthesisCard: React.FC<DeepSynthesisCardProps> = ({
             <MarkdownRenderer content={aiReading} />
           </div>
 
-          {/* Callout de Suscripción a Tránsitos Diarios con Google Assistant */}
-          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-amber-950/40 via-stone-900 to-indigo-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Callout de Suscripción a Tránsitos Diarios con WhatsApp Audio */}
+          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-stone-900 to-amber-950/40 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
-                ¿Te gustaría recibir los Tránsitos Diarios con IA cada mañana?
+                ¿Te gustaría recibir los Tránsitos Diarios en audio cada mañana?
               </span>
               <p className="text-xs text-stone-300 leading-relaxed">
-                El análisis de tránsitos y clima temporal es generado diariamente de acuerdo a tus tránsitos personales para tu altavoz o móvil Google. Solo di: <strong className="text-white">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong>.
+                El análisis de tránsitos y clima temporal es generado diariamente con IA de acuerdo a tu carta natal. Recíbelo cada mañana como nota de voz directamente en tu WhatsApp.
               </p>
             </div>
             {onOpenSubscriptionModal && (
               <button
                 type="button"
                 onClick={onOpenSubscriptionModal}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-xs shrink-0 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
               >
                 <span>Activar Faro Diario ($7.99/mes)</span>
               </button>

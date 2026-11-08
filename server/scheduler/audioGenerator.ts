@@ -33,45 +33,68 @@ function conTimeout<T>(promesa: Promise<T>, ms: number, etiqueta: string): Promi
 }
 
 /**
- * Construye el prompt cálido y personal en español para la generación de voz.
+ * Modelos de voz TTS soportados ordenados desde la versión más reciente usable
+ */
+const TTS_CANDIDATE_MODELS = [
+  process.env.GEMINI_TTS_MODEL_OVERRIDE,
+  'gemini-3.8-flash-tts',
+  'gemini-3.5-flash-tts',
+  'gemini-2.5-flash-tts',
+].filter(Boolean) as string[];
+
+/**
+ * Construye el guion hablado cálido en español optimizado para nota de voz de menos de 1 minuto (máx 85-95 palabras).
  */
 function construirPrompt(user: UserForScheduler, transitResult: DailyTransitsResult): string {
+  if (transitResult.sintesisAudioMatutino && transitResult.sintesisAudioMatutino.trim().length > 15) {
+    return transitResult.sintesisAudioMatutino.trim();
+  }
+
+  // Fallback sintético conciso garantizado < 50 segundos
   return (
-    `Hola ${user.nombre}. Este es tu Faro Biográfico para el día de hoy, ${transitResult.fecha}.\n\n` +
-    `${transitResult.textoPunto4}\n\n` +
-    `Recuerda que los astros no determinan tu destino, sino que iluminan el camino.`
+    `Buenos días, ${user.nombre}. Tu faro biográfico para hoy ${transitResult.fecha}: ` +
+    `los tránsitos activos favorecen tu presencia y templanza. ` +
+    `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`
   );
 }
 
 /**
- * Realiza una única llamada a la API de Gemini para generar el audio TTS.
- * Extrae el base64 del audio del primer step de tipo 'model_output' con
- * contenido de tipo 'audio' y lo devuelve como Buffer.
+ * Realiza una llamada a la API de Gemini para generar el audio TTS,
+ * probando automáticamente desde el modelo más nuevo usable con degradación elegante.
  */
 async function llamarApiTts(prompt: string, apiKey: string): Promise<Buffer> {
   const client = new GoogleGenAI({ apiKey });
+  let ultimoError: unknown;
 
-  const interaction = await client.interactions.create({
-    model: 'gemini-3.8-flash-tts',
-    input: prompt,
-    response_modalities: ['audio'],
-    generation_config: {
-      speech_config: [{ voice: 'achernar', language: 'es-ES' }],
-    },
-  });
+  for (const modelName of TTS_CANDIDATE_MODELS) {
+    try {
+      const interaction = await client.interactions.create({
+        model: modelName,
+        input: prompt,
+        response_modalities: ['audio'],
+        generation_config: {
+          speech_config: [{ voice: 'achernar', language: 'es-ES' }],
+        },
+      });
 
-  // Recorrer los steps para encontrar el audio base64
-  for (const step of interaction.steps) {
-    if (step.type === 'model_output') {
-      for (const content of step.content ?? []) {
-        if (content.type === 'audio' && content.data) {
-          return Buffer.from(content.data, 'base64');
+      // Recorrer los steps para encontrar el audio base64
+      for (const step of interaction.steps) {
+        if (step.type === 'model_output') {
+          for (const content of step.content ?? []) {
+            if (content.type === 'audio' && content.data) {
+              return Buffer.from(content.data, 'base64');
+            }
+          }
         }
       }
+    } catch (err) {
+      ultimoError = err;
+      console.warn(`[audioGenerator] Fallo con modelo TTS ${modelName}:`, (err as any)?.message || err);
+      // Continuar al siguiente modelo en cascada
     }
   }
 
-  throw new Error('[audioGenerator] La respuesta de la API no contiene datos de audio.');
+  throw new Error(`[audioGenerator] No se pudo generar audio con los modelos TTS disponibles. Último error: ${ultimoError}`);
 }
 
 // ---------------------------------------------------------------------------

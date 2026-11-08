@@ -12,6 +12,7 @@ import {
   Headphones,
   Info,
   Radio,
+  MessageSquare,
 } from 'lucide-react';
 import { getTransitExplanation } from '../utils/transitExplanations';
 
@@ -49,21 +50,21 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-stone-950 flex items-center gap-1.5 shadow-sm">
-                <Mic className="w-3.5 h-3.5" />
-                Novedad • Google Assistant
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400 text-stone-950 flex items-center gap-1.5 shadow-sm">
+                <MessageSquare className="w-3.5 h-3.5" />
+                Faro Diario • Audio por WhatsApp
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-indigo-400" />
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-400" />
                 Tránsitos Diarios con IA
               </span>
             </div>
             <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-100 flex items-center gap-2">
-              <span>Recibe tu lectura de tránsitos cada mañana con</span>
-              <span className="text-amber-400 underline decoration-amber-500/50 underline-offset-4">&ldquo;Ok Google&rdquo;</span>
+              <span>Recibe tu nota de voz con los tránsitos cada mañana en</span>
+              <span className="text-emerald-400 underline decoration-emerald-500/50 underline-offset-4">WhatsApp</span>
             </h3>
             <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
-              La IA calcula los tránsitos astronómicos sobre tu carta natal y genera tu audio diariamente de acuerdo a tus tránsitos personales. Así, en cualquier altavoz o móvil con Google Assistant, solo dices <em>&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</em> y se reproduce al instante.
+              La IA calcula los tránsitos astronómicos sobre tu carta natal y genera una nota de voz personalizada con voz natural en español. Cada mañana la recibes directamente en tu WhatsApp para comenzar el día en sintonía con tu mapa evolutivo.
             </p>
           </div>
 
@@ -72,7 +73,7 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
               <button
                 type="button"
                 onClick={onOpenSubscriptionModal}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-stone-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-950/40 transition-all cursor-pointer"
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-stone-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
               >
                 <Headphones className="w-4 h-4" />
                 <span>Suscribirme ($7.99 USD/mes)</span>
@@ -83,42 +84,42 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
               onClick={() => setShowAssistantGuide(!showAssistantGuide)}
               className="px-4 py-2 rounded-xl bg-stone-950/80 hover:bg-stone-800 border border-stone-700 text-stone-300 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
-              <Info className="w-3.5 h-3.5 text-amber-400" />
-              <span>{showAssistantGuide ? 'Ocultar guía de voz' : '¿Cómo funciona Ok Google?'}</span>
+              <Info className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{showAssistantGuide ? 'Ocultar guía' : '¿Cómo funciona Faro Diario?'}</span>
             </button>
           </div>
         </div>
 
-        {/* Guía Desplegable de Google Assistant */}
+        {/* Guía Desplegable de Faro Diario */}
         {showAssistantGuide && (
           <div className="pt-3 border-t border-stone-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
-              <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[11px]">1</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">1</span>
                 Suscripción Mensual
               </span>
               <p className="text-stone-300 text-[11px] leading-relaxed">
-                Activa tu suscripción mensual Faro Diario ($7.99/mes) gestionada con Polar.sh con renovación automática y cancelación con 1 clic.
+                Activa tu suscripción mensual Faro Diario ($7.99/mes) gestionada con Polar.sh con renovación automática y cancelación con 1 clic en cualquier momento.
               </p>
             </div>
 
             <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
-              <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[11px]">2</span>
-                Generación Diaria Personalizada
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">2</span>
+                Cálculo Astronómico Matutino
               </span>
               <p className="text-stone-300 text-[11px] leading-relaxed">
-                El motor de IA procesa tus aspectos benéficos y tensiones del día de acuerdo a tus tránsitos personales con Gemini TTS, listo para reproducirse.
+                El motor de Efemérides Suizas procesa tus aspectos benéficos y tensiones del día en sinastría con tu natal, redactando la síntesis orientadora.
               </p>
             </div>
 
             <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
-              <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[11px]">3</span>
-                Comando en Altavoz o Móvil
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">3</span>
+                Audio directo a tu WhatsApp
               </span>
               <p className="text-stone-300 text-[11px] leading-relaxed">
-                Solo di en voz alta: <strong className="text-stone-100">&ldquo;Ok Google, habla con Faro Biográfico&rdquo;</strong> para escuchar tu guía astrológica.
+                Recibe el audio sintetizado con voz humana natural directamente en tu chat de WhatsApp cada mañana para escucharlo con un toque.
               </p>
             </div>
           </div>

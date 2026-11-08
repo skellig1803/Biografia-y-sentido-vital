@@ -369,10 +369,20 @@ Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones
   const failedAttempts: Array<{ model: string; error: string; category: string }> = [];
 
   if (ai) {
-    const modelsToTry = [
-      { name: 'gemini-3.8-flash', timeoutMs: 32000 },
-      { name: 'gemini-3.1-flash-lite', timeoutMs: 16000 },
-    ];
+    const candidateModelNames = [
+      process.env.GEMINI_MODEL_OVERRIDE,
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+    ].filter(Boolean) as string[];
+
+    const uniqueModelNames = Array.from(new Set(candidateModelNames));
+    const modelsToTry = uniqueModelNames.map((name, idx) => ({
+      name,
+      timeoutMs: idx === 0 ? 30000 : 15000,
+    }));
 
     for (const { name: modelName, timeoutMs } of modelsToTry) {
       try {
