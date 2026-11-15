@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { getResolvedApiKey } from '../synthesisEngine.js';
+import { getResolvedApiKey, getResolvedDeepSeekApiKey } from '../synthesisEngine.js';
 import type { UserForScheduler, DailyTransitsResult } from './dailyTransits.js';
 
 // ---------------------------------------------------------------------------
@@ -33,6 +33,18 @@ function conTimeout<T>(promesa: Promise<T>, ms: number, etiqueta: string): Promi
 }
 
 /**
+ * Modelos de generación de texto ordenados por capacidad para sintetizar el guion hablado
+ */
+const TEXT_CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL_OVERRIDE,
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+].filter(Boolean) as string[];
+
+/**
  * Modelos de voz TTS soportados ordenados desde la versión más reciente usable
  */
 const TTS_CANDIDATE_MODELS = [
@@ -43,31 +55,136 @@ const TTS_CANDIDATE_MODELS = [
 ].filter(Boolean) as string[];
 
 /**
- * Construye el guion hablado cálido en español optimizado para nota de voz de menos de 1 minuto (máx 85-95 palabras).
- * Si el texto excede 95 palabras (~130 palabras por minuto en locución natural), se trunca de forma limpia
- * para asegurar que la síntesis de audio nunca supere los 45 a 60 segundos.
+ * Limpia y recorta el texto para asegurar una locución que jamás supere 1 minuto (<= 88 palabras).
  */
-function construirPrompt(user: UserForScheduler, transitResult: DailyTransitsResult): string {
-  let texto = (transitResult.sintesisAudioMatutino || '').trim();
+export function sanitizeWordCount(texto: string, nombre: string): string {
+  let clean = texto
+    .replace(/[«»*#_~`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  // Si no hay texto o es muy corto, usamos el mensaje síntesis garantizado < 40 segundos
-  if (!texto || texto.length < 15) {
-    return (
-      `Buenos días, ${user.nombre}. Tu faro biográfico para hoy ${transitResult.fecha}: ` +
-      `los tránsitos activos favorecen tu presencia y templanza. ` +
-      `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`
-    );
+  const palabras = clean.split(' ');
+  if (palabras.length > 88) {
+    clean = palabras.slice(0, 84).join(' ') + '... Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso.';
+  }
+  return clean;
+}
+
+/**
+ * Genera el guion hablado de WhatsApp usando IA (Gemini con fallback a DeepSeek y a reglas enriquecidas).
+ * Toma el análisis astrológico de tránsitos de la persona y lo sintetiza en una locución de 1 minuto
+ * o menos (65 a 85 palabras) con situaciones reales de la vida cotidiana (negocios, comunicación,
+ * pensamiento lógico, ventas, riesgos de exageración o precipitación).
+ */
+export async function generatePersonalizedSpokenScriptWithAI(
+  user: UserForScheduler,
+  transitResult: DailyTransitsResult,
+): Promise<string> {
+  const geminiKey = getResolvedApiKey();
+  const deepseekKey = getResolvedDeepSeekApiKey();
+
+  const promptInstruccion = `Eres un sabio biógrafo y astrólogo práctico humanista.
+Tu tarea es convertir el reporte de tránsitos del día en un guion hablado cálido, motivador y sumamente concreto para una nota de voz matutina de WhatsApp dirigida a ${user.nombre}.
+
+DATOS DE TRÁNSITOS DE HOY:
+Fecha: ${transitResult.fecha}
+Aspectos favorables: ${JSON.stringify(transitResult.aspectosBeneficos)}
+Aspectos de tensión: ${JSON.stringify(transitResult.aspectosConflictivos)}
+Tránsitos activos: ${JSON.stringify(transitResult.transitosActivos)}
+Texto base del reporte:
+${transitResult.textoPunto4}
+
+REGLAS CRÍTICAS OBLIGATORIAS:
+1. DURACIÓN ESTRICTA: Debe tener entre 65 y 85 palabras (máximo 88 palabras, jamás exceder 1 minuto de habla a 125 ppm).
+2. NADA DE GENERALIDADES: Prohibido usar frases vacías o clichés esotéricos (como "ventana de gracia", "energías favorables", "modula las vibraciones").
+3. EFECTO EN LA VIDA REAL: Da pistas sumamente concretas sobre situaciones cotidianas:
+   - Si hay tránsitos de Mercurio: menciona explícitamente su impacto en negocios, llamadas clave, acuerdos, ventas, contratos, trámites o pensamiento lógico analítico.
+   - Si hay tensión de Sol o Marte con Júpiter: advierte con claridad sobre el riesgo de exagerar, sobreestimar fuerzas o prometer más de lo que se puede abarcar; recomendando aterrizar expectativas y evitar decisiones o respuestas con prisa.
+   - Si hay contactos de Venus o Luna: menciona el trato con personas, socios o estado anímico.
+4. ESTRUCTURA:
+   - Saludo con su nombre: "Buenos días, ${user.nombre}. Tu faro para hoy, [Día]:"
+   - La oportunidad práctica del día en el trabajo o la vida cotidiana.
+   - El punto de atención o cuidado situacional a modular con serenidad.
+   - Cierre breve inspirador bajo el modelo EGM (ligera presencia del día).
+5. FORMATO DE SALIDA: Entrega ÚNICAMENTE el texto que será leído en voz alta, sin comillas, sin viñetas, sin negritas Markdown ni explicaciones adicionales.`;
+
+  // 1. Intentar con Gemini
+  if (geminiKey) {
+    try {
+      const client = new GoogleGenAI({ apiKey: geminiKey });
+      for (const model of TEXT_CANDIDATE_MODELS) {
+        try {
+          const response = await conTimeout(
+            client.models.generateContent({
+              model,
+              contents: promptInstruccion,
+              config: {
+                temperature: 0.6,
+                maxOutputTokens: 250,
+              },
+            }),
+            10_000,
+            `Gemini spoken script (${model})`,
+          );
+
+          const text = response.text ? response.text.trim() : '';
+          if (text && text.length > 50) {
+            return sanitizeWordCount(text, user.nombre);
+          }
+        } catch (err) {
+          console.warn(`[audioGenerator] Fallo al generar guion con Gemini (${model}):`, (err as any)?.message);
+        }
+      }
+    } catch (e) {
+      console.warn('[audioGenerator] Error inicializando cliente Gemini:', (e as any)?.message);
+    }
   }
 
-  // Garantía estricta de duración < 1 minuto: máx 90 palabras
-  const palabras = texto.split(/\s+/);
-  if (palabras.length > 95) {
-    const recorte = palabras.slice(0, 90).join(' ');
-    // Cerrar con despedida si quedó cortada
-    texto = `${recorte}... Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso.`;
+  // 2. Intentar con DeepSeek si Gemini no respondió
+  if (deepseekKey) {
+    try {
+      const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+      const res = await conTimeout(
+        fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${deepseekKey}`,
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [{ role: 'user', content: promptInstruccion }],
+            temperature: 0.6,
+            max_tokens: 250,
+          }),
+        }),
+        10_000,
+        'DeepSeek spoken script',
+      );
+
+      if (res.ok) {
+        const data: any = await res.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (text && text.length > 50) {
+          return sanitizeWordCount(text, user.nombre);
+        }
+      }
+    } catch (dsErr) {
+      console.warn('[audioGenerator] Fallo al generar guion con DeepSeek:', (dsErr as any)?.message);
+    }
   }
 
-  return texto;
+  // 3. Fallback determinista enriquecido con pistas situacionales reales
+  const fallbackTexto = (transitResult.sintesisAudioMatutino || '').trim();
+  if (fallbackTexto && fallbackTexto.length >= 15) {
+    return sanitizeWordCount(fallbackTexto, user.nombre);
+  }
+
+  return (
+    `Buenos días, ${user.nombre}. Tu faro para hoy, ${transitResult.fecha}: ` +
+    `el cielo te invita a avanzar con orden en tus actividades cotidianas. ` +
+    `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`
+  );
 }
 
 /**
@@ -168,7 +285,8 @@ export async function generateDailyAudio(
     throw new Error('[audioGenerator] No se encontró una API key de Gemini configurada.');
   }
 
-  const prompt = construirPrompt(user, transitResult);
+  // 1. Sintetizar el guion hablado personalizado con IA (< 1 minuto, con impacto real en la vida cotidiana)
+  const prompt = await generatePersonalizedSpokenScriptWithAI(user, transitResult);
   let ultimoError: unknown;
 
   for (let intento = 1; intento <= MAX_INTENTOS; intento++) {

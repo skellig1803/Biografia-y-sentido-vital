@@ -333,9 +333,9 @@ DIRECTRICES POR SECCIÓN:
   1. INTERPRETACIÓN DE SINASTRÍA INDIVIDUAL: Esta sección NO debe ser genérica ni plantilla. Debe interpretar de forma explícita la SINASTRÍA del cielo de hoy sobre la carta natal de ${name}. Toma en cuenta exactamente qué planetas del cielo están contactando a qué planetas natales y activando qué casas de su mapa personal.
   2. SÍNTESIS APLICADA A SU DÍA: Sintetiza el significado vivencial de esos contactos celestes aplicados a sus actividades diarias:
      - Qué energías de su carta natal (planetas y casas) se encuentran activadas hoy.
-     - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas derivadas de los contactos armónicos o fluidos de hoy en su carta.
-     - POSIBLES CONFLICTOS: Advierte sobre los posibles roces, riesgos o tensiones derivados de los contactos desafiantes activos hoy en su mapa, y cómo modularlos con serenidad.
-     - CONSEJO PRÁCTICO: Una recomendación clara y aplicable a su jornada (aplicando la liviandad sabia del Pez Dorado: soltar el apego a fricciones pasajeras y vivir el día presente con fluidez).
+     - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas en la vida real (ej: si Mercurio está armónico, especificar negocios, acuerdos, comunicación clara, trámites o pensamiento lógico; si Venus, alianzas y relaciones; si Marte, empuje y toma de decisiones).
+     - POSIBLES CONFLICTOS: Advierte sobre los posibles roces y riesgos psicológicos o prácticos en la jornada (ej: si Sol o Marte tensan a Júpiter, advertir sobre la probabilidad a exagerar, sobreestimar fuerzas o prometer de más; recomendando mantener la calma, la sensatez y evitar reacciones con prisa).
+     - CONSEJO PRÁCTICO: Una recomendación clara, accionable y aplicable a su jornada (aplicando la liviandad sabia del Pez Dorado: soltar el apego a fricciones pasajeras y vivir el día presente con fluidez).
   3. DIFERENCIACIÓN TOTAL: Dos personas con configuraciones planetarias distintas DEBEN recibir respuestas totalmente diferentes. La interpretación debe pertenecer exclusivamente a la sinastría de los tránsitos de hoy con los planetas y casas natales de esta persona.
   4. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, vivencial y aterrizado (120-170 palabras, aproximadamente 1 minuto de lectura). Sin viñetas mecánicas ni menciones a audio o micrófonos.`;
 
