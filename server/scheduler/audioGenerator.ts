@@ -44,18 +44,30 @@ const TTS_CANDIDATE_MODELS = [
 
 /**
  * Construye el guion hablado cálido en español optimizado para nota de voz de menos de 1 minuto (máx 85-95 palabras).
+ * Si el texto excede 95 palabras (~130 palabras por minuto en locución natural), se trunca de forma limpia
+ * para asegurar que la síntesis de audio nunca supere los 45 a 60 segundos.
  */
 function construirPrompt(user: UserForScheduler, transitResult: DailyTransitsResult): string {
-  if (transitResult.sintesisAudioMatutino && transitResult.sintesisAudioMatutino.trim().length > 15) {
-    return transitResult.sintesisAudioMatutino.trim();
+  let texto = (transitResult.sintesisAudioMatutino || '').trim();
+
+  // Si no hay texto o es muy corto, usamos el mensaje síntesis garantizado < 40 segundos
+  if (!texto || texto.length < 15) {
+    return (
+      `Buenos días, ${user.nombre}. Tu faro biográfico para hoy ${transitResult.fecha}: ` +
+      `los tránsitos activos favorecen tu presencia y templanza. ` +
+      `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`
+    );
   }
 
-  // Fallback sintético conciso garantizado < 50 segundos
-  return (
-    `Buenos días, ${user.nombre}. Tu faro biográfico para hoy ${transitResult.fecha}: ` +
-    `los tránsitos activos favorecen tu presencia y templanza. ` +
-    `Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso y consciente.`
-  );
+  // Garantía estricta de duración < 1 minuto: máx 90 palabras
+  const palabras = texto.split(/\s+/);
+  if (palabras.length > 95) {
+    const recorte = palabras.slice(0, 90).join(' ');
+    // Cerrar con despedida si quedó cortada
+    texto = `${recorte}... Recuerda que los astros iluminan el sendero, pero tú diriges tus pasos. Que tengas un día luminoso.`;
+  }
+
+  return texto;
 }
 
 /**
