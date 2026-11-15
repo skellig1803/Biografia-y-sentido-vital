@@ -188,27 +188,102 @@ function estimateTimezoneOffset(timezone: string, fecha: Date): number {
 }
 
 /**
+ * Devuelve la pista situacional práctica para el día a día de un aspecto benéfico.
+ */
+function getPistaPracticaBenefica(a: Aspecto): string {
+  const t = a.planetaTransitante.toLowerCase();
+  const n = a.planetaNatal.toLowerCase();
+
+  if (t === 'mercurio' && n === 'mercurio') {
+    return 'abres una valiosa ventana para los negocios, la comunicación y los procesos de pensamiento lógico y acuerdos';
+  }
+  if (t === 'mercurio' && (n === 'sol' || n === 'júpiter' || n === 'nodo norte' || n === 'lilith')) {
+    return 'se potencia tu agilidad mental para negociar, firmar acuerdos comerciales y estructurar ideas con lucidez';
+  }
+  if (t === 'mercurio') {
+    return 'cuentas con gran claridad para el diálogo, resolver trámites pendientes y coordinar decisiones con precisión';
+  }
+  if (t === 'venus' && (n === 'sol' || n === 'luna' || n === 'júpiter')) {
+    return 'se favorecen las relaciones personales, las ventas, los acuerdos cordiales y las alianzas de mutuo beneficio';
+  }
+  if (t === 'venus') {
+    return 'es un momento propicio para cultivar armonía en tu entorno, negociar con suavidad y cuidar tu bienestar';
+  }
+  if (t === 'marte' && (n === 'sol' || n === 'mercurio' || n === 'júpiter')) {
+    return 'cuentas con empuje resolutivo para tomar decisiones firmes, liderar proyectos y actuar con determinación';
+  }
+  if (t === 'marte') {
+    return 'tienes vitalidad y coraje para destrabar gestiones complejas sin postergaciones';
+  }
+  if (t === 'júpiter' && n === 'júpiter') {
+    return 'se amplifica tu visión estratégica, confianza y optimismo bien fundamentado para abrir nuevas puertas';
+  }
+  if (t === 'júpiter') {
+    return 'se presentan oportunidades de expansión en proyectos clave gracias a contactos de valor';
+  }
+  if (t === 'sol') {
+    return 'se ilumina tu centro consciente, aportando vitalidad, seguridad en tus criterios y reconocimiento';
+  }
+  if (t === 'luna') {
+    return 'cuentas con intuición afinada y empatía para percibir el momento oportuno en tus actividades';
+  }
+  return `activa facilidades concretas en ${a.planetaNatal.toLowerCase()} para avanzar en tus prioridades con serenidad`;
+}
+
+/**
+ * Devuelve la pista de advertencia situacional para modular un aspecto de tensión en la jornada.
+ */
+function getPistaPracticaTension(a: Aspecto): string {
+  const t = a.planetaTransitante.toLowerCase();
+  const n = a.planetaNatal.toLowerCase();
+
+  if ((t === 'sol' && n === 'júpiter') || (t === 'júpiter' && n === 'sol')) {
+    return 'advierte la probabilidad a exagerar o sobreestimar fuerzas; mantén la calma, aterriza expectativas y evita reacciones con prisa';
+  }
+  if ((t === 'marte' && n === 'júpiter') || (t === 'júpiter' && n === 'marte')) {
+    return 'previene contra la impaciencia y los riesgos apresurados: modula el entusiasmo y no actúes por mero impulso';
+  }
+  if (t === 'marte') {
+    return 'puede generar roces de temperamento o frustración ante imprevistos; canaliza la energía en trabajo enfocado sin discutir';
+  }
+  if (t === 'urano' && (n === 'luna' || n === 'mercurio' || n === 'lilith')) {
+    return 'pueden presentarse imprevistos de agenda o giros repentinos; mantén la flexibilidad mental sin frustrarte';
+  }
+  if (t === 'urano') {
+    return 'invita a la adaptabilidad frente a cambios súbitos en tus labores cotidianas';
+  }
+  if (t === 'saturno') {
+    return 'podrías sentir lentitud o exigencias burocráticas; responde con rigor y método sin perder la paciencia';
+  }
+  if (t === 'mercurio') {
+    return 'cuidado con despistes, malentendidos o dispersión; verifica los detalles antes de firmar o enviar';
+  }
+  if (t === 'luna') {
+    return 'la susceptibilidad emocional puede nublar la perspectiva; respira antes de responder a situaciones sensibles';
+  }
+  if (t === 'neptuno') {
+    return 'evita confusiones o expectativas poco realistas; exige datos verificables antes de tomar decisiones';
+  }
+  if (t === 'plutón') {
+    return 'invita a soltar luchas de poder o control; transforma la fricción en maestría personal';
+  }
+  return `demanda moderación y discernimiento: observa antes de reaccionar y mantén tu centro`;
+}
+
+/**
  * Devuelve el significado breve de un aspecto benéfico para la narrativa.
  */
 function significadoBenef(tipo: string, transitante: string, natal: string): string {
-  const significados: Record<string, string> = {
-    trígono: `flujo armonioso de energía entre ${transitante} y ${natal} — momento de gracia y facilidad`,
-    sextil: `oportunidad valiosa activada por ${transitante} en diálogo con ${natal} — actúa con intención`,
-    conjunción: `fusión expansiva de ${transitante} con ${natal} — la energía se amplifica favorablemente`,
-  };
-  return significados[tipo] ?? `energía favorable entre ${transitante} y ${natal}`;
+  const pista = getPistaPracticaBenefica({ planetaTransitante: transitante, planetaNatal: natal, tipo, orbe: 0, esBenefic: true });
+  return `oportunidad favorable: ${pista}`;
 }
 
 /**
  * Devuelve el significado breve de un aspecto conflictivo para la narrativa.
  */
 function significadoConflict(tipo: string, transitante: string, natal: string): string {
-  const significados: Record<string, string> = {
-    cuadratura: `tensión creativa entre ${transitante} y ${natal} — desafío que impulsa el crecimiento`,
-    oposición: `polaridad activa entre ${transitante} y ${natal} — busca el equilibrio consciente`,
-    conjunción: `presión de ${transitante} sobre ${natal} — momento de disciplina y transformación`,
-  };
-  return significados[tipo] ?? `tensión entre ${transitante} y ${natal}`;
+  const pista = getPistaPracticaTension({ planetaTransitante: transitante, planetaNatal: natal, tipo, orbe: 0, esBenefic: false });
+  return `punto de atención: ${pista}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -428,15 +503,19 @@ export async function computeDailyTransitsPoint4(
   if (hayBenef && hayConflict) {
     const b = aspectosBeneficos[0];
     const c = aspectosConflictivos[0];
-    mensajeFocal = `Hoy, ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal abre una valiosa ventana de gracia y avance para tus iniciativas. Al mismo tiempo, modula la tensión de ${c.planetaTransitante} con tu ${c.planetaNatal}: mantén la calma y evita reaccionar con prisa.`;
+    const pistaBenef = getPistaPracticaBenefica(b);
+    const pistaConflict = getPistaPracticaTension(c);
+    mensajeFocal = `Hoy, con ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal, ${pistaBenef}. Al mismo tiempo, la tensión de ${c.planetaTransitante} con ${c.planetaNatal} ${pistaConflict}.`;
   } else if (hayBenef) {
     const b = aspectosBeneficos[0];
-    mensajeFocal = `Hoy cuentas con un clima astral favorable: ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal activa tu claridad e impulso creativo. Es un momento propicio para actuar y conectar con tus metas.`;
+    const pistaBenef = getPistaPracticaBenefica(b);
+    mensajeFocal = `Hoy cuentas con un viento astral favorable: con ${b.planetaTransitante} en ${b.tipo} con tu ${b.planetaNatal} natal, ${pistaBenef}. Aprovecha este impulso con intención clara.`;
   } else if (hayConflict) {
     const c = aspectosConflictivos[0];
-    mensajeFocal = `El cielo de hoy te invita a la templanza: la tensión de ${c.planetaTransitante} con tu ${c.planetaNatal} natal pide moderación y firmeza. Usa cualquier fricción como oportunidad para ordenar tus prioridades.`;
+    const pistaConflict = getPistaPracticaTension(c);
+    mensajeFocal = `El cielo de hoy te invita al discernimiento: la tensión de ${c.planetaTransitante} con tu ${c.planetaNatal} natal ${pistaConflict}. Usa el reto como palanca de madurez.`;
   } else {
-    mensajeFocal = `Hoy predomina una calma fértil en tus tránsitos. Con ${lunaDesc}, es un día idóneo para avanzar con constancia en tus labores cotidianas y cultivar tu bienestar.`;
+    mensajeFocal = `Hoy predomina una calma fértil en tus tránsitos. Con ${lunaDesc}, es un día propicio para avanzar con método en tus labores cotidianas y cuidar tu bienestar.`;
   }
 
   const sintesisAudioMatutino =
