@@ -12,6 +12,8 @@ import { DeepSynthesisCard } from './components/DeepSynthesisCard';
 import { PlanetaryTable } from './components/PlanetaryTable';
 import { CreditModal } from './components/CreditModal';
 import { LegalModal, LegalTab } from './components/LegalModal';
+import { SubscriptionConfirmModal } from './components/SubscriptionConfirmModal';
+import { RestoreProfileModal } from './components/RestoreProfileModal';
 import { getCreditBalance, subscribeToCredits, addCredits } from './utils/creditManager';
 import {
   TableProperties,
@@ -27,6 +29,11 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
+  Mic,
+  Headphones,
+  PlusCircle,
+  ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 
 const DEFAULT_BIRTH_DATA: BirthData = {
@@ -48,6 +55,7 @@ export default function App() {
   const [isSwissPrecision, setIsSwissPrecision] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(() => getCreditBalance());
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [creditModalTab, setCreditModalTab] = useState<'credits' | 'services'>('credits');
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<LegalTab>('terms');
   const [paymentNotice, setPaymentNotice] = useState<{
@@ -57,9 +65,23 @@ export default function App() {
     creditsAdded?: number;
   } | null>(null);
 
+  const [isSubscriptionConfirmOpen, setIsSubscriptionConfirmOpen] = useState(false);
+  const [isRestoreProfileOpen, setIsRestoreProfileOpen] = useState(false);
+  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
+
   const openLegalModal = (tab: LegalTab = 'terms') => {
     setLegalModalTab(tab);
     setIsLegalModalOpen(true);
+  };
+
+  const openSubscriptionModal = (tab: 'credits' | 'services' = 'services') => {
+    setCreditModalTab(tab);
+    setIsCreditModalOpen(true);
+  };
+
+  const openSubscriptionConfirmModal = (checkoutUrl?: string | null) => {
+    setPendingCheckoutUrl(checkoutUrl || null);
+    setIsSubscriptionConfirmOpen(true);
   };
 
   // Detect Polar.sh return / success redirect in URL params
@@ -191,7 +213,7 @@ export default function App() {
     { id: 'septenio', label: 'Septenio Biográfico', icon: <Clock className="w-4 h-4" />, badge: `S${calculationResult.currentSeptenio.number}` },
     { id: 'lunarNodes', label: 'Nodo Lunar & Dirección', icon: <Compass className="w-4 h-4" />, badge: calculationResult.lunarNodes.northNode.sign },
     { id: 'yearOfLife', label: 'Año de Vida', icon: <SunMedium className="w-4 h-4" />, badge: `Año ${calculationResult.yearOfLife.currentYearOfLife}` },
-    { id: 'transits', label: 'Tránsitos Planetarios', icon: <Sparkles className="w-4 h-4" />, badge: `${calculationResult.currentTransits.activeTransits.length}` },
+    { id: 'transits', label: 'Tránsitos Diarios', icon: <Sparkles className="w-4 h-4" />, badge: 'Audio • WhatsApp' },
     { id: 'synthesis', label: 'Lectura Integral', icon: <BookOpen className="w-4 h-4" />, badge: 'IA' },
     { id: 'overview', label: 'Planetas & Casas', icon: <TableProperties className="w-4 h-4" /> },
   ];
@@ -201,9 +223,48 @@ export default function App() {
       <Header
         hasCalculated={true}
         creditBalance={creditBalance}
-        onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+        onOpenCreditsModal={() => openSubscriptionModal('credits')}
         onOpenLegal={() => openLegalModal('terms')}
+        onOpenRestoreProfile={() => setIsRestoreProfileOpen(true)}
       />
+
+      {/* Top Banner de Anuncio: Faro Diario por WhatsApp */}
+      <div className="bg-gradient-to-r from-emerald-950/80 via-stone-900 to-amber-950/80 border-b border-emerald-500/30 px-4 py-2.5 text-xs text-stone-300">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-2.5 w-2.5 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wide">
+              Faro Diario
+            </span>
+            <p className="text-stone-200">
+              <strong className="text-emerald-300">Audio Matutino en WhatsApp:</strong> Recibe cada mañana una nota de voz personalizada con tus tránsitos y clima astral del día.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('transits')}
+              className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <span>Ver Tránsitos de Hoy</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-stone-700">|</span>
+            <button
+              type="button"
+              onClick={() => openSubscriptionConfirmModal()}
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Headphones className="w-3 h-3 text-emerald-400" />
+              <span>Suscripción ($7.99/mes)</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Formulario de Entrada */}
@@ -492,6 +553,174 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Catálogo de Lecturas y Servicios Biográficos Disponibles */}
+              <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-6 shadow-xl space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-800">
+                  <div>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Ecosistema Faro Biográfico
+                    </span>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-100 mt-2">
+                      Catálogo de Lecturas y Servicios Disponibles
+                    </h2>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      Explora todas las formas de acceder a tu mapa vital: desde audios matutinos por voz en WhatsApp hasta reportes completos con IA y consultoría 1 a 1.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openSubscriptionModal('credits')}
+                    className="self-start sm:self-auto px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Ver Planes & Monedero</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* 1. Faro Diario por WhatsApp */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-stone-950 hover:border-emerald-500/60 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          Suscripción Mensual
+                        </span>
+                        <MessageSquare className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Faro Diario (Audio en WhatsApp)
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Tránsitos activos, aspectos benéficos y clima del día. Nota de voz personalizada generada con IA cada mañana y enviada directamente a tu WhatsApp.
+                      </p>
+                      <div className="text-emerald-300 font-bold text-sm pt-1">
+                        $7.99 USD <span className="text-[11px] font-normal text-stone-400">/ mes</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('services')}
+                        className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Headphones className="w-3.5 h-3.5" />
+                        <span>Suscribirme</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('transits')}
+                        className="w-full py-1.5 px-3 rounded-lg bg-stone-950 hover:bg-stone-800 border border-stone-800 text-[11px] text-stone-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>Ver Tránsitos de Hoy</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Informe Integral con IA */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                          Pago por Reporte
+                        </span>
+                        <BookOpen className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Informe Integral de Trayectoria (IA)
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Los 5 puntos interpretativos completos: Eje Nodal, Septenios, Profeción Anual, Tránsitos y Síntesis del Alma con exportación a PDF.
+                      </p>
+                      <div className="text-purple-300 font-bold text-sm pt-1">
+                        1 Crédito <span className="text-[11px] font-normal text-stone-400">(¡5 Gratis de bienvenida!)</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('synthesis')}
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-stone-800 border border-stone-700 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Generar con IA</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('credits')}
+                        className="w-full py-1.5 px-3 rounded-lg bg-stone-950 hover:bg-stone-800 border border-stone-800 text-[11px] text-stone-400 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>Packs desde $1.99/u</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Rectificación Artesanal */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          Servicio Artesanal
+                        </span>
+                        <Clock className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Rectificación Biográfica de Carta Natal
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Determinación exacta al minuto de tu hora de nacimiento mediante técnica de atacires y eventos pasados. Entrega en 3 días.
+                      </p>
+                      <div className="text-emerald-300 font-bold text-sm pt-1">
+                        $80.00 USD <span className="text-[11px] font-normal text-stone-400">(pago único)</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-stone-800/80">
+                      <button
+                        type="button"
+                        onClick={() => openSubscriptionModal('services')}
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-stone-800 border border-stone-700 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Solicitar Rectificación</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Consultas 1 a 1 */}
+                  <div className="flex flex-col justify-between p-4.5 rounded-xl border border-stone-800 bg-stone-950 hover:border-stone-700 transition-all space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                          Sesión Individual
+                        </span>
+                        <MessageSquare className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <h3 className="font-serif font-bold text-base text-stone-100">
+                        Consultas Privadas 1 a 1
+                      </h3>
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Sesión personalizada (60-90 min) de acompañamiento en crisis evolutivas, septenios, vocación y sentido vital con agenda previa.
+                      </p>
+                      <div className="text-emerald-400 font-bold text-sm pt-1">
+                        Tarifa acordada <span className="text-[11px] font-normal text-stone-400">(contacto directo WhatsApp)</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-stone-800/80">
+                      <a
+                        href="https://wa.me/593999429478?text=Hola%2C%20me%20gustar%C3%ADa%20coordinar%20una%20Consulta%20Privada%20Individual%20de%20Biograf%C3%ADa%20Vital."
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2 px-3 rounded-lg bg-stone-850 hover:bg-emerald-950/60 border border-stone-700 hover:border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Escribir por WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -520,13 +749,15 @@ export default function App() {
               transitDate={calculationResult.currentTransits.transitDate}
               transitPlanets={calculationResult.currentTransits.transitPlanets}
               activeTransits={calculationResult.currentTransits.activeTransits}
+              onOpenSubscriptionModal={() => openSubscriptionConfirmModal()}
             />
           )}
 
           {activeTab === 'synthesis' && (
             <DeepSynthesisCard
               calculation={calculationResult}
-              onOpenCreditsModal={() => setIsCreditModalOpen(true)}
+              onOpenCreditsModal={() => openSubscriptionModal('credits')}
+              onOpenSubscriptionModal={() => openSubscriptionModal('services')}
             />
           )}
         </div>
@@ -538,6 +769,31 @@ export default function App() {
         onClose={() => setIsCreditModalOpen(false)}
         onCreditsUpdated={(newBal) => setCreditBalance(newBal)}
         onOpenLegal={openLegalModal}
+        initialTab={creditModalTab}
+        onRequestSubscribeFaroDiario={(checkoutUrl) => {
+          setIsCreditModalOpen(false);
+          openSubscriptionConfirmModal(checkoutUrl);
+        }}
+      />
+
+      {/* Modal de Confirmación de Datos Natales y WhatsApp para Faro Diario */}
+      <SubscriptionConfirmModal
+        isOpen={isSubscriptionConfirmOpen}
+        onClose={() => setIsSubscriptionConfirmOpen(false)}
+        currentBirthData={birthData}
+        onApplyBirthData={(updatedData) => {
+          setBirthData(updatedData);
+        }}
+        checkoutUrl={pendingCheckoutUrl}
+      />
+
+      {/* Modal de Recuperación y Carga de Perfil en Dispositivos Nuevos */}
+      <RestoreProfileModal
+        isOpen={isRestoreProfileOpen}
+        onClose={() => setIsRestoreProfileOpen(false)}
+        onProfileRestored={(restoredData) => {
+          setBirthData(restoredData);
+        }}
       />
 
       {/* Modal de Centro Legal, Términos y Cumplimiento (Compliance / MoR) */}

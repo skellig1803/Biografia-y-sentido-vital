@@ -135,27 +135,46 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     return calculateCompleteChart(birthData);
   }
 
-  const [bYear, bMonth, bDay] = birthData.birthDate.split('-').map(Number);
-  const [bHour, bMin] = birthData.birthTime.split(':').map(Number);
-  let tz = Number(birthData.timezoneOffset);
+  const [bYear, bMonth, bDay] = (birthData.birthDate || '').split('-').map(Number);
+  const [bHour, bMin] = (birthData.birthTime || '12:00').split(':').map(Number);
+  const rawTz = birthData.timezoneOffset ?? (birthData as any).timeZoneOffset;
+  let tz = typeof rawTz === 'number' && !isNaN(rawTz) ? rawTz : 0;
 
   // Use historical IANA timezone calculation if provided or infer from coordinates/popular cities
   if (birthData.ianaTimeZone) {
-    tz = calculateHistoricalTimezoneOffset(
-      birthData.ianaTimeZone,
-      birthData.birthDate,
-      birthData.birthTime,
-      tz
-    );
+    try {
+      tz = calculateHistoricalTimezoneOffset(
+        birthData.ianaTimeZone,
+        birthData.birthDate,
+        birthData.birthTime,
+        tz
+      );
+    } catch {
+      // Keep tz
+    }
   }
+  if (isNaN(tz)) tz = 0;
 
-  const latitude = Number(birthData.latitude);
-  const longitude = Number(birthData.longitude);
+  let latitude = Number(birthData.latitude);
+  let longitude = Number(birthData.longitude);
+  if (isNaN(latitude)) latitude = 0;
+  if (isNaN(longitude)) longitude = 0;
+
+  const validYear = !isNaN(bYear) && bYear > 0 ? bYear : 2000;
+  const validMonth = !isNaN(bMonth) && bMonth >= 1 && bMonth <= 12 ? bMonth : 1;
+  const validDay = !isNaN(bDay) && bDay >= 1 && bDay <= 31 ? bDay : 1;
+  const validHour = !isNaN(bHour) && bHour >= 0 && bHour <= 23 ? bHour : 12;
+  const validMin = !isNaN(bMin) && bMin >= 0 && bMin <= 59 ? bMin : 0;
 
   // Convert local birth time to UTC
   // Local Time - timezoneOffset = UTC Time
-  const localMs = Date.UTC(bYear, bMonth - 1, bDay, bHour || 12, bMin || 0);
+  const localMs = Date.UTC(validYear, validMonth - 1, validDay, validHour, validMin);
   const utcDate = new Date(localMs - tz * 3600 * 1000);
+
+  if (isNaN(utcDate.getTime())) {
+    console.warn('[SwissEphemeris] Fecha/hora inválida calculada. Usando motor TypeScript.');
+    return calculateCompleteChart(birthData);
+  }
 
   const utcYear = utcDate.getUTCFullYear();
   const utcMonth = utcDate.getUTCMonth() + 1;
@@ -167,13 +186,25 @@ export function computeSwissEphemerisChart(birthData: BirthData): NatalChartCalc
     utcDate.getUTCMilliseconds() / 3600000;
 
   // Calculate Julian Day in UT (1 = Gregorian calendar)
-  const jdUt = sweph.julday(utcYear, utcMonth, utcDay, utcDecimalHour, 1);
+  let jdUt: number;
+  try {
+    jdUt = sweph.julday(utcYear, utcMonth, utcDay, utcDecimalHour, 1);
+  } catch (jErr) {
+    console.warn('[SwissEphemeris] Fallo al calcular julday:', jErr);
+    return calculateCompleteChart(birthData);
+  }
 
   // Calculate Placidus Houses ('P' = Placidus)
-  let housesResult = sweph.houses(jdUt, latitude, longitude, 'P');
-  if (housesResult.flag < 0 || !housesResult.data?.houses) {
-    // Polar latitude or Placidus mathematical singularity fallback to Equal ('E')
-    housesResult = sweph.houses(jdUt, latitude, longitude, 'E');
+  let housesResult: any;
+  try {
+    housesResult = sweph.houses(jdUt, latitude, longitude, 'P');
+    if (housesResult.flag < 0 || !housesResult.data?.houses) {
+      // Polar latitude or Placidus mathematical singularity fallback to Equal ('E')
+      housesResult = sweph.houses(jdUt, latitude, longitude, 'E');
+    }
+  } catch (hErr) {
+    console.warn('[SwissEphemeris] Fallo al calcular casas:', hErr);
+    return calculateCompleteChart(birthData);
   }
   const cuspLongitudes: number[] = housesResult.data?.houses || [];
   const ascendantLon = housesResult.data?.points?.[0] ?? 0;

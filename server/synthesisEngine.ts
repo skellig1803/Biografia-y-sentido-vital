@@ -309,8 +309,12 @@ export async function generateSynthesisReading(body: any): Promise<{
 - Recomendaciones Prácticas: ${(yearOfLife.vitalRecommendations || []).join('; ')}`
     : `- Profección anual: ${profectionStr}`;
 
-  const systemInstruction = `Eres un sabio biógrafo antroposófico (siguiendo las enseñanzas de Rudolf Steiner y Bernard Lievegoed) y astrólogo humanista. Redacta análisis biográficos profundos, vivenciales, cálidos y transformadores.
+  const systemInstruction = `Eres un sabio biógrafo antroposófico (siguiendo las enseñanzas de Rudolf Steiner y Bernard Lievegoed) y astrólogo humanista fundamentado en el Modelo Elefante-Pez Dorado (EGM - Elephant Goldfish Model). Redacta análisis biográficos profundos, vivenciales, cálidos y transformadores.
 REGLA CRÍTICA DE INTEGRIDAD: Debes redactar y concluir de forma completa y exhaustiva cada una de las 4 secciones solicitadas sin dejar ideas truncadas ni oraciones a medias en Markdown bien estructurado.
+
+MARCO METODOLÓGICO EGM (ELEPHANT GOLDFISH MODEL):
+- Polaridad Elefante (Macro-ritmo / Memoria Profunda): Las Secciones 1 y 2 articulan la memoria indeleble del alma, los septenios, el eje nodal y los hilos de destino que no se olvidan y fundamentan la salutogénesis biográfica.
+- Polaridad Pez Dorado (Micro-ritmo / Presencia Viva de 24h): Las Secciones 3 y 4 abordan el clima anual y la cualidad del día con frescura y ligereza, facilitando el soltar inercias o cargas del pasado y responder al instante presente con discernimiento y sin apegos reactivos.
 
 DIRECTRICES POR SECCIÓN:
 - SECCIÓN 1: "## 1. La Esencia Biográfica y el Reto del Septenio Presente":
@@ -329,9 +333,9 @@ DIRECTRICES POR SECCIÓN:
   1. INTERPRETACIÓN DE SINASTRÍA INDIVIDUAL: Esta sección NO debe ser genérica ni plantilla. Debe interpretar de forma explícita la SINASTRÍA del cielo de hoy sobre la carta natal de ${name}. Toma en cuenta exactamente qué planetas del cielo están contactando a qué planetas natales y activando qué casas de su mapa personal.
   2. SÍNTESIS APLICADA A SU DÍA: Sintetiza el significado vivencial de esos contactos celestes aplicados a sus actividades diarias:
      - Qué energías de su carta natal (planetas y casas) se encuentran activadas hoy.
-     - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas derivadas de los contactos armónicos o fluidos de hoy en su carta.
-     - POSIBLES CONFLICTOS: Advierte sobre los posibles roces, riesgos o tensiones derivados de los contactos desafiantes activos hoy en su mapa, y cómo modularlos con serenidad.
-     - CONSEJO PRÁCTICO: Una recomendación clara y aplicable a su jornada.
+     - BENEFICIOS EN TUS ACTIVIDADES DIARIAS: Detalla los beneficios y facilidades concretas en la vida real (ej: si Mercurio está armónico, especificar negocios, acuerdos, comunicación clara, trámites o pensamiento lógico; si Venus, alianzas y relaciones; si Marte, empuje y toma de decisiones).
+     - POSIBLES CONFLICTOS: Advierte sobre los posibles roces y riesgos psicológicos o prácticos en la jornada (ej: si Sol o Marte tensan a Júpiter, advertir sobre la probabilidad a exagerar, sobreestimar fuerzas o prometer de más; recomendando mantener la calma, la sensatez y evitar reacciones con prisa).
+     - CONSEJO PRÁCTICO: Una recomendación clara, accionable y aplicable a su jornada (aplicando la liviandad sabia del Pez Dorado: soltar el apego a fricciones pasajeras y vivir el día presente con fluidez).
   3. DIFERENCIACIÓN TOTAL: Dos personas con configuraciones planetarias distintas DEBEN recibir respuestas totalmente diferentes. La interpretación debe pertenecer exclusivamente a la sinastría de los tránsitos de hoy con los planetas y casas natales de esta persona.
   4. ESTILO Y EXTENSIÓN: Tono coloquial, cálido, vivencial y aterrizado (120-170 palabras, aproximadamente 1 minuto de lectura). Sin viñetas mecánicas ni menciones a audio o micrófonos.`;
 
@@ -369,10 +373,20 @@ Escribe la guía biográfica integral abarcando obligatoriamente las 4 secciones
   const failedAttempts: Array<{ model: string; error: string; category: string }> = [];
 
   if (ai) {
-    const modelsToTry = [
-      { name: 'gemini-3.8-flash', timeoutMs: 32000 },
-      { name: 'gemini-3.1-flash-lite', timeoutMs: 16000 },
-    ];
+    const candidateModelNames = [
+      process.env.GEMINI_MODEL_OVERRIDE,
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+    ].filter(Boolean) as string[];
+
+    const uniqueModelNames = Array.from(new Set(candidateModelNames));
+    const modelsToTry = uniqueModelNames.map((name, idx) => ({
+      name,
+      timeoutMs: idx === 0 ? 30000 : 15000,
+    }));
 
     for (const { name: modelName, timeoutMs } of modelsToTry) {
       try {

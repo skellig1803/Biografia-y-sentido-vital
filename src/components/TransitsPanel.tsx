@@ -1,20 +1,36 @@
 import React, { useState } from 'react';
 import { PlanetPosition, TransitAspect } from '../types';
-import { Orbit, Sparkles, AlertTriangle, CheckCircle, Calendar, Lightbulb, MapPin } from 'lucide-react';
+import {
+  Orbit,
+  Sparkles,
+  AlertTriangle,
+  CheckCircle,
+  Calendar,
+  Lightbulb,
+  MapPin,
+  Mic,
+  Headphones,
+  Info,
+  Radio,
+  MessageSquare,
+} from 'lucide-react';
 import { getTransitExplanation } from '../utils/transitExplanations';
 
 interface TransitsPanelProps {
   transitDate: string;
   transitPlanets: PlanetPosition[];
   activeTransits: TransitAspect[];
+  onOpenSubscriptionModal?: () => void;
 }
 
 export const TransitsPanel: React.FC<TransitsPanelProps> = ({
   transitDate,
   transitPlanets,
   activeTransits,
+  onOpenSubscriptionModal,
 }) => {
   const [filterType, setFilterType] = useState<'all' | 'major' | 'challenging' | 'harmonious'>('major');
+  const [showAssistantGuide, setShowAssistantGuide] = useState(false);
 
   const filteredTransits = activeTransits.filter((t) => {
     if (filterType === 'major') return t.isMajor;
@@ -25,6 +41,91 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
 
   return (
     <div className="bg-stone-900/90 border border-stone-800 rounded-2xl p-6 shadow-xl space-y-6">
+      {/* Banner Destacado: Lectura Diaria de Tránsitos con Google Assistant */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-950/70 via-stone-900 to-indigo-950/70 border-2 border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4">
+        {/* Glows ambientales */}
+        <div className="absolute -right-16 -top-16 w-56 h-56 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-16 -bottom-16 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400 text-stone-950 flex items-center gap-1.5 shadow-sm">
+                <MessageSquare className="w-3.5 h-3.5" />
+                Faro Diario • Audio por WhatsApp
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-400" />
+                Tránsitos Diarios con IA
+              </span>
+            </div>
+            <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-100 flex items-center gap-2">
+              <span>Recibe tu nota de voz con los tránsitos cada mañana en</span>
+              <span className="text-emerald-400 underline decoration-emerald-500/50 underline-offset-4">WhatsApp</span>
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
+              La IA calcula los tránsitos astronómicos sobre tu carta natal y genera una nota de voz personalizada con voz natural en español. Cada mañana la recibes directamente en tu WhatsApp para comenzar el día en sintonía con tu mapa evolutivo.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+            {onOpenSubscriptionModal && (
+              <button
+                type="button"
+                onClick={onOpenSubscriptionModal}
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-stone-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
+              >
+                <Headphones className="w-4 h-4" />
+                <span>Suscribirme ($7.99 USD/mes)</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowAssistantGuide(!showAssistantGuide)}
+              className="px-4 py-2 rounded-xl bg-stone-950/80 hover:bg-stone-800 border border-stone-700 text-stone-300 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Info className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{showAssistantGuide ? 'Ocultar guía' : '¿Cómo funciona Faro Diario?'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Guía Desplegable de Faro Diario */}
+        {showAssistantGuide && (
+          <div className="pt-3 border-t border-stone-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">1</span>
+                Suscripción Mensual
+              </span>
+              <p className="text-stone-300 text-[11px] leading-relaxed">
+                Activa tu suscripción mensual Faro Diario ($7.99/mes) gestionada con Polar.sh con renovación automática y cancelación con 1 clic en cualquier momento.
+              </p>
+            </div>
+
+            <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">2</span>
+                Cálculo Astronómico Matutino
+              </span>
+              <p className="text-stone-300 text-[11px] leading-relaxed">
+                El motor de Efemérides Suizas procesa tus aspectos benéficos y tensiones del día en sinastría con tu natal, redactando la síntesis orientadora.
+              </p>
+            </div>
+
+            <div className="bg-stone-950/70 p-3.5 rounded-xl border border-stone-800/80 space-y-1.5">
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[11px]">3</span>
+                Audio directo a tu WhatsApp
+              </span>
+              <p className="text-stone-300 text-[11px] leading-relaxed">
+                Recibe el audio sintetizado con voz humana natural directamente en tu chat de WhatsApp cada mañana para escucharlo con un toque.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-800">
         <div>
