@@ -6,6 +6,12 @@
       "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/scheduler/run-daily",
+      "schedule": "0 10 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

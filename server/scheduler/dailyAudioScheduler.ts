@@ -23,7 +23,8 @@ import {
 } from '../../lib/dailyAudioCache.js';
 import { computeDailyTransitsPoint4 } from './dailyTransits.js';
 import { generateDailyAudio, isQuotaExhaustedError } from './audioGenerator.js';
-import { uploadDailyAudio } from './audioStorage.js';
+import { uploadDailyAudio, getSignedAudioUrl } from './audioStorage.js';
+import { sendDailyWhatsAppAudio } from './whatsappSender.js';
 
 // ---------------------------------------------------------------------------
 // Tipos públicos
@@ -190,6 +191,21 @@ export async function runDailyAudioGeneration(
         transitosJson: transitResult,
         audioDurationSeconds: 0,
       });
+
+      // 8. Enviar notificación/audio por WhatsApp (si WHATSAPP_ACCESS_TOKEN está configurado)
+      const deliveryUrl = (await getSignedAudioUrl(userId, date)) || audioUrl;
+      const waRes = await sendDailyWhatsAppAudio({
+        toPhone: user.whatsapp,
+        userName,
+        fecha: date,
+        audioUrl: deliveryUrl,
+        scriptText: textoGenerado,
+      });
+      if (waRes.sent) {
+        console.log(`[Scheduler] 📲 WhatsApp enviado a ${userName} (ID: ${waRes.messageId}).`);
+      } else if (!waRes.skipped) {
+        console.warn(`[Scheduler] ⚠️ No se pudo enviar WhatsApp a ${userName}: ${waRes.reason}`);
+      }
 
       console.log(`[Scheduler] ✓ Audio generado para ${userName} (${userId}).`);
       result.generated++;

@@ -458,25 +458,24 @@ export async function computeDailyTransitsPoint4(
       `${primerBenef.planetaTransitante} en ${primerBenef.tipo} para avanzar en lo que más te importa, ` +
       `mientras integras con consciencia la tensión de ${primerConflict.planetaTransitante} en ` +
       `${primerConflict.tipo}. La clave es actuar desde la serenidad y no desde la reacción. ` +
-      `Bajo el Modelo Elefante-Pez Dorado (EGM), habita el presente con la ligereza sabia del Pez Dorado: ` +
-      `los tránsitos son ventanas de posibilidad, no dictados del destino; suelta las cargas de ayer y fluye con presencia clara.`;
+      `Habita el presente con ligereza y claridad: los tránsitos son ventanas de posibilidad, no dictados del destino; suelta las cargas de ayer y fluye con presencia serena.`;
   } else if (hayBenef) {
     const primerBenef = aspectosBeneficos[0];
     orientacion =
       `El día se presenta con vientos favorables: ${primerBenef.planetaTransitante} en ${primerBenef.tipo} ` +
       `activa recursos internos y externos que facilitan tus metas. Es un momento propicio para iniciar, ` +
-      `conectar y crear. Con la frescura viva del Pez Dorado (EGM), confía en tu impulso y actúa con intención clara.`;
+      `conectar y crear. Con frescura y presencia viva, confía en tu impulso y actúa con intención clara.`;
   } else if (hayConflict) {
     const primerConflict = aspectosConflictivos[0];
     orientacion =
       `Hoy los tránsitos invitan a la paciencia y la reflexión. ${primerConflict.planetaTransitante} en ` +
       `${primerConflict.tipo} puede generar fricción o resistencia; úsala como combustible para crecer. ` +
-      `Bajo el prisma del Pez Dorado (EGM), no te aferres a la incomodidad pasajera: el malestar de hoy puede ser la sabiduría de mañana.`;
+      `No te aferres a la incomodidad pasajera del día: el malestar de hoy puede ser la sabiduría de mañana.`;
   } else {
     orientacion =
       `El cielo de hoy presenta una calma relativa en los tránsitos. Es un día favorable para el ` +
       `trabajo constante, la rutina creativa y la atención a los detalles cotidianos. Mantén tu centro ` +
-      `con la ligereza del Pez Dorado (EGM) y confía en el proceso, pues los grandes cambios a menudo germinan en la quietud.`;
+      `con presencia serena y confía en el proceso, pues los grandes cambios a menudo germinan en la quietud.`;
   }
 
   const textoPunto4 = [

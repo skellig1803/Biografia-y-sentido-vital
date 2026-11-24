@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BirthData } from '../types';
 import {
+  getCreditBalance,
+  getProfileToken,
+  setCreditBalanceFromServer,
+  setProfileToken,
+} from '../utils/creditManager';
+import {
   X,
   Sparkles,
   Headphones,
@@ -159,17 +165,31 @@ export const SubscriptionConfirmModal: React.FC<SubscriptionConfirmModalProps> =
         longitude: longitude || 0,
         timezone: currentBirthData.ianaTimeZone || 'America/Bogota',
         whatsapp: whatsapp.trim(),
+        clientCredits: getCreditBalance(),
       };
+
+      const existingToken = getProfileToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (existingToken) {
+        headers['Authorization'] = `Bearer ${existingToken}`;
+      }
 
       const res = await fetch('/api/user/profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Error al guardar perfil en el servidor.');
+      }
+
+      if (data.profileToken) {
+        setProfileToken(data.profileToken);
+      }
+      if (data.user && typeof data.user.credits === 'number') {
+        setCreditBalanceFromServer(data.user.credits);
       }
 
       // Update in local client state too

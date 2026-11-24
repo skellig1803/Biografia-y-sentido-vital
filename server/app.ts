@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -14,23 +15,57 @@ import {
 import { reportDeveloperError, getDeveloperErrorRegistry } from '../lib/errorLogger.js';
 import { analyzeBiographicalSeptenios } from '../lib/gemini.js';
 import { analyzeBiographicalSeptenios as analyzeBiographicalSepteniosDeepSeek } from '../lib/deepseek.js';
-import { upsertBiografia, getUserById, upsertUserProfile, getUserByEmailOrWhatsApp } from '../lib/db.js';
+import {
+  upsertBiografia,
+  getUserById,
+  getUserByEmail,
+  createUser,
+  upsertUserProfile,
+  getUserByEmailOrWhatsApp,
+  addUserCredits,
+  consumeUserCredit,
+} from '../lib/db.js';
+import {
+  upsertSubscription,
+  cancelSubscription,
+  checkAndSyncSubscriptionStatus,
+} from '../lib/subscriptions.js';
+import { getDailyAudio } from '../lib/dailyAudioCache.js';
 import { createAssistantRouter } from './assistant/webhook.js';
 import { runDailyAudioGeneration } from './scheduler/dailyAudioScheduler.js';
 import { computeDailyTransitsPoint4 } from './scheduler/dailyTransits.js';
 import { generateDailyAudio } from './scheduler/audioGenerator.js';
+import { getSignedAudioUrl } from './scheduler/audioStorage.js';
+import { sendDailyWhatsAppAudio } from './scheduler/whatsappSender.js';
 
 dotenv.config();
 
 const app = express();
-const PORT =
-  process.env.APP_PORT
-    ? parseInt(process.env.APP_PORT, 10)
-    : process.env.DEFAULT_APP_PORT
-    ? parseInt(process.env.DEFAULT_APP_PORT, 10)
-    : process.env.PORT && process.env.PORT !== '8080'
-    ? parseInt(process.env.PORT, 10)
-    : 3000;
+
+function resolvePort(): number {
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const cliPort = parseInt(process.argv[portArgIndex + 1], 10);
+    if (!Number.isNaN(cliPort) && cliPort > 0 && cliPort !== 8080) {
+      return cliPort;
+    }
+  }
+  if (process.env.APP_PORT) {
+    const p = parseInt(process.env.APP_PORT, 10);
+    if (!Number.isNaN(p) && p > 0) return p;
+  }
+  if (process.env.DEFAULT_APP_PORT) {
+    const p = parseInt(process.env.DEFAULT_APP_PORT, 10);
+    if (!Number.isNaN(p) && p > 0) return p;
+  }
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    const p = parseInt(process.env.PORT, 10);
+    if (!Number.isNaN(p) && p > 0) return p;
+  }
+  return 3000;
+}
+
+const PORT = resolvePort();
 
 // Prevent express.json from hanging when run inside serverless environments (e.g. Vercel)
 // where req.body has already been pre-parsed and the stream ended.
@@ -88,6 +123,9 @@ app.get(['/api/health', '/health'], (req, res) => {
       process.env.POLAR_ORGANIZATION_SLUG ||
       process.env.POLAR_CHECKOUT_URL_SINGLE ||
       process.env.POLAR_CHECKOUT_URL_PACK5
+    ),
+    hasWhatsApp: Boolean(
+      process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID
     ),
     organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
   });
@@ -222,44 +260,202 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
   });
 });
 
+// Helpers de sesión firmada para proteger perfiles de usuario y créditos
+function getProfileTokenSecret(): string {
+  return (
+    process.env.PROFILE_TOKEN_SECRET ||
+    process.env.SCHEDULER_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    'faro-biografico-session-signing-key'
+  );
+}
+
+function signProfileToken(userId: string, email: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      uid: userId,
+      email: email.toLowerCase(),
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 días
+    })
+  ).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', getProfileTokenSecret())
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+function verifyProfileToken(token?: string | null): { userId: string; email: string } | null {
+  if (!token || typeof token !== 'string') return null;
+  const clean = token.replace(/^Bearer\s+/i, '').trim();
+  const parts = clean.split('.');
+  if (parts.length !== 2) return null;
+  const [payload, sig] = parts;
+  const expectedSig = crypto
+    .createHmac('sha256', getProfileTokenSecret())
+    .update(payload)
+    .digest('base64url');
+  try {
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!decoded?.uid || !decoded?.email || (decoded.exp && Date.now() > decoded.exp)) {
+      return null;
+    }
+    return { userId: String(decoded.uid), email: String(decoded.email).toLowerCase() };
+  } catch {
+    return null;
+  }
+}
+
+function extractRequestProfileToken(req: express.Request): { userId: string; email: string } | null {
+  const authHeader = (req.headers['authorization'] || req.headers['x-profile-token']) as string | undefined;
+  return verifyProfileToken(authHeader);
+}
+
+function resolveCreditsForOrder(eventData: any): number {
+  const productId = String(eventData?.product_id || eventData?.product?.id || '').trim();
+  const productName = String(eventData?.product?.name || eventData?.product_name || '').toLowerCase();
+  const amountCents = Number(eventData?.amount ?? eventData?.total_amount ?? 0);
+
+  if (process.env.POLAR_PRODUCT_ID_PACK15 && productId === process.env.POLAR_PRODUCT_ID_PACK15) return 15;
+  if (process.env.POLAR_PRODUCT_ID_PACK5 && productId === process.env.POLAR_PRODUCT_ID_PACK5) return 5;
+  if (process.env.POLAR_PRODUCT_ID_PACK1 && productId === process.env.POLAR_PRODUCT_ID_PACK1) return 1;
+
+  if (productName.includes('15') || productName.includes('profesional')) return 15;
+  if (productName.includes('5') || productName.includes('pack 5') || productName.includes('familiar')) return 5;
+  if (productName.includes('1 reporte') || productName.includes('trayectoria')) return 1;
+
+  // Respaldo por monto en centavos USD ($29.99 / $14.99 / $3.99)
+  if (amountCents >= 2500 && amountCents < 5000) return 15;
+  if (amountCents >= 1200 && amountCents < 2500) return 5;
+  if (amountCents >= 300 && amountCents < 700) return 1;
+  return 0;
+}
+
 // Polar.sh Webhook receiver (for order.created, subscription.created, etc.)
-app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], (req, res) => {
+app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], async (req, res) => {
   try {
     const webhookSecret = process.env.POLAR_WEBHOOK_SECRET || process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
     const signature = (req.headers['webhook-signature'] || req.headers['x-signature'] || req.headers['x-polar-signature']) as string;
     const webhookId = req.headers['webhook-id'] as string;
     const webhookTimestamp = req.headers['webhook-timestamp'] as string;
 
-    if (webhookSecret && signature) {
-      // Polar uses Standard Webhook signing (HMAC SHA256)
+    if (webhookSecret) {
+      if (!signature) {
+        return res.status(401).json({ error: 'Firma de webhook ausente' });
+      }
       const rawPayload = JSON.stringify(req.body);
       const toSign = webhookId && webhookTimestamp ? `${webhookId}.${webhookTimestamp}.${rawPayload}` : rawPayload;
-      const hmac = crypto.createHmac('sha256', webhookSecret);
-      const computedHex = hmac.update(toSign).digest('hex');
-      const computedBase64 = crypto.createHmac('sha256', webhookSecret).update(toSign).digest('base64');
 
-      // Check if signature matches hex or base64 (or standard v1,... prefix)
-      const matches =
-        signature === computedHex ||
-        signature === computedBase64 ||
-        signature.includes(computedBase64) ||
-        signature.includes(computedHex);
+      // Soportar secreto plano o secreto Standard Webhooks con prefijo whsec_
+      const secretCandidates: Array<string | Buffer> = [webhookSecret];
+      if (webhookSecret.startsWith('whsec_')) {
+        secretCandidates.push(Buffer.from(webhookSecret.slice(6), 'base64'));
+      }
+
+      let matches = false;
+      for (const secretKey of secretCandidates) {
+        const computedHex = crypto.createHmac('sha256', secretKey).update(toSign).digest('hex');
+        const computedBase64 = crypto.createHmac('sha256', secretKey).update(toSign).digest('base64');
+        if (
+          signature === computedHex ||
+          signature === computedBase64 ||
+          signature.includes(computedBase64) ||
+          signature.includes(computedHex)
+        ) {
+          matches = true;
+          break;
+        }
+      }
 
       if (!matches) {
-        console.warn('[Polar Webhook] Firma de webhook no coincide, verificando sin prefijo...');
+        console.warn('[Polar Webhook] Firma inválida rechazada.');
+        return res.status(401).json({ error: 'Firma de webhook inválida' });
       }
     }
 
-    const eventType = req.body?.type || req.body?.event || req.body?.meta?.event_name || 'polar.event';
+    const eventType = String(req.body?.type || req.body?.event || req.body?.meta?.event_name || 'polar.event');
     const eventData = req.body?.data || req.body;
+    const customerEmail = String(
+      eventData?.customer?.email || eventData?.customer_email || eventData?.user?.email || ''
+    )
+      .trim()
+      .toLowerCase();
 
     console.log(`[Polar Webhook] Evento recibido: ${eventType}`, {
       id: eventData?.id,
-      amount: eventData?.amount || eventData?.total_formatted,
-      customerEmail: eventData?.customer?.email || eventData?.customer_email,
+      customerEmail,
       productId: eventData?.product_id,
       productName: eventData?.product?.name,
     });
+
+    // Sincronización con Supabase si hay correo del cliente y credenciales de DB
+    if (customerEmail) {
+      try {
+        let user = await getUserByEmail(customerEmail);
+
+        // Si el usuario pagó en Polar sin haber guardado su ficha antes, crear registro base para no perder el pago
+        if (!user && (eventType.includes('subscription') || eventType.includes('order'))) {
+          user = await createUser({
+            email: customerEmail,
+            nombre: eventData?.customer?.name || customerEmail.split('@')[0],
+            fecha_nacimiento: '1990-01-01',
+            suscripcion_activa: false,
+          });
+        }
+
+        if (user) {
+          if (
+            eventType === 'subscription.created' ||
+            eventType === 'subscription.active' ||
+            eventType === 'subscription.updated' ||
+            eventType === 'subscription.uncanceled'
+          ) {
+            const subStatusRaw = String(eventData?.status || 'active').toLowerCase();
+            const mappedStatus =
+              subStatusRaw === 'canceled' || subStatusRaw === 'cancelled'
+                ? 'cancelled'
+                : subStatusRaw === 'past_due'
+                ? 'past_due'
+                : subStatusRaw === 'expired' || subStatusRaw === 'revoked'
+                ? 'expired'
+                : 'active';
+
+            const periodStart = eventData?.current_period_start || new Date().toISOString();
+            const periodEnd =
+              eventData?.current_period_end ||
+              new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
+
+            await upsertSubscription({
+              userId: user.id,
+              polarSubscriptionId: String(eventData?.id || `sub_${user.id}`),
+              polarOrderId: eventData?.order_id ? String(eventData.order_id) : undefined,
+              planId: String(eventData?.product_id || 'faro_diario_mensual'),
+              status: mappedStatus,
+              currentPeriodStart: periodStart,
+              currentPeriodEnd: periodEnd,
+            });
+            await checkAndSyncSubscriptionStatus(user.id);
+          } else if (eventType === 'subscription.canceled' || eventType === 'subscription.revoked') {
+            if (eventData?.id) {
+              await cancelSubscription(String(eventData.id));
+            }
+          } else if (eventType === 'order.created' || eventType === 'order.paid') {
+            const creditsToAdd = resolveCreditsForOrder(eventData);
+            if (creditsToAdd > 0) {
+              await addUserCredits(user.id, creditsToAdd);
+              console.log(`[Polar Webhook] +${creditsToAdd} créditos acreditados en Supabase a ${customerEmail}`);
+            }
+          }
+        }
+      } catch (dbErr: any) {
+        console.warn('[Polar Webhook] Advertencia al sincronizar evento con Supabase:', dbErr?.message || dbErr);
+      }
+    }
 
     return res.json({ received: true, event: eventType, provider: 'polar' });
   } catch (err: any) {
@@ -268,20 +464,62 @@ app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], (req,
   }
 });
 
-// Guardar o actualizar perfil natal del usuario + WhatsApp (antes de suscribirse o para actualizar datos)
+// Guardar o actualizar perfil natal del usuario + WhatsApp (protegido contra suplantación)
 app.post(['/api/user/profile', '/user/profile'], async (req, res) => {
   try {
-    const { email, nombre, name, fecha_nacimiento, birthDate, hora_nacimiento, birthTime, lugar_nacimiento, placeName, latitude, lat, longitude, lng, timezone, ianaTimeZone, whatsapp } = req.body || {};
-    
+    const {
+      email,
+      nombre,
+      name,
+      fecha_nacimiento,
+      birthDate,
+      hora_nacimiento,
+      birthTime,
+      lugar_nacimiento,
+      placeName,
+      latitude,
+      lat,
+      longitude,
+      lng,
+      timezone,
+      ianaTimeZone,
+      whatsapp,
+      clientCredits,
+    } = req.body || {};
+
     const userEmail = String(email || '').trim().toLowerCase();
-    if (!userEmail) {
+    if (!userEmail || !userEmail.includes('@')) {
       return res.status(400).json({ success: false, error: 'El correo electrónico es requerido para vincular tu suscripción.' });
     }
 
-    const birthDateVal = fecha_nacimiento || birthDate;
+    const birthDateVal = String(fecha_nacimiento || birthDate || '').trim().slice(0, 10);
     if (!birthDateVal) {
       return res.status(400).json({ success: false, error: 'La fecha de nacimiento es requerida.' });
     }
+
+    const tokenData = extractRequestProfileToken(req);
+    const existing = await getUserByEmail(userEmail);
+
+    if (existing) {
+      const hasValidSession = tokenData && tokenData.userId === existing.id;
+      const existingBirth = String(existing.fecha_nacimiento || '').slice(0, 10);
+      const matchesBirth = existingBirth === birthDateVal || existingBirth === '1990-01-01';
+
+      if (!hasValidSession && !matchesBirth) {
+        return res.status(403).json({
+          success: false,
+          error:
+            'Este correo ya tiene una ficha registrada. Recupera tu sesión desde el botón "Mi Perfil" verificando tu fecha de nacimiento actual para poder modificarla.',
+        });
+      }
+    }
+
+    const safeInitialCredits =
+      existing
+        ? undefined
+        : typeof clientCredits === 'number' && clientCredits >= 0 && clientCredits <= 20
+        ? Math.floor(clientCredits)
+        : 5;
 
     const saved = await upsertUserProfile({
       email: userEmail,
@@ -293,31 +531,83 @@ app.post(['/api/user/profile', '/user/profile'], async (req, res) => {
       longitude: typeof longitude === 'number' ? longitude : (lng ? Number(lng) : null),
       timezone: timezone || ianaTimeZone || 'America/Bogota',
       whatsapp: whatsapp || null,
+      credits: safeInitialCredits,
     });
 
-    return res.json({ success: true, user: saved });
+    const profileToken = signProfileToken(saved.id, saved.email);
+
+    return res.json({
+      success: true,
+      profileToken,
+      user: {
+        id: saved.id,
+        email: saved.email,
+        nombre: saved.nombre,
+        fecha_nacimiento: saved.fecha_nacimiento,
+        hora_nacimiento: saved.hora_nacimiento,
+        lugar_nacimiento: saved.lugar_nacimiento,
+        latitude: saved.latitude,
+        longitude: saved.longitude,
+        timezone: saved.timezone,
+        whatsapp: saved.whatsapp,
+        credits: typeof saved.credits === 'number' ? saved.credits : 5,
+        suscripcion_activa: Boolean(saved.suscripcion_activa),
+      },
+    });
   } catch (error: any) {
     console.error('Error al guardar perfil de usuario:', error);
     return res.status(500).json({ success: false, error: error.message || 'Error al guardar perfil' });
   }
 });
 
-// Recuperar perfil natal del usuario por Email o por WhatsApp (al ingresar desde otro dispositivo)
+// Recuperar perfil natal del usuario (exige token de sesión o verificación por fecha de nacimiento)
 app.get(['/api/user/profile', '/user/profile'], async (req, res) => {
   try {
+    const tokenData = extractRequestProfileToken(req);
     const query = (req.query.q || req.query.email || req.query.whatsapp || req.query.identifier) as string;
-    if (!query || query.trim().length < 3) {
-      return res.status(400).json({ success: false, error: 'Ingresa un correo o número de WhatsApp válido.' });
+    const birthDateParam = (req.query.birthDate || req.query.fecha_nacimiento || '') as string;
+
+    let user: any = null;
+
+    if (tokenData) {
+      user = await getUserById(tokenData.userId);
+    } else {
+      if (!query || query.trim().length < 3) {
+        return res.status(400).json({ success: false, error: 'Ingresa un correo o número de WhatsApp válido.' });
+      }
+      if (!birthDateParam || birthDateParam.trim().length < 8) {
+        return res.status(400).json({
+          success: false,
+          requiresVerification: true,
+          error: 'Por seguridad, ingresa también tu fecha de nacimiento para verificar tu identidad.',
+        });
+      }
+
+      user = await getUserByEmailOrWhatsApp(query);
+      if (!user) {
+        return res.json({ success: true, found: false, message: 'No se encontró un perfil registrado con esos datos.' });
+      }
+
+      const storedBirth = String(user.fecha_nacimiento || '').slice(0, 10);
+      const providedBirth = birthDateParam.trim().slice(0, 10);
+      if (storedBirth !== providedBirth && storedBirth !== '1990-01-01') {
+        return res.status(403).json({
+          success: false,
+          error: 'La fecha de nacimiento no coincide con el perfil registrado. Verifica tus datos o escríbenos por WhatsApp.',
+        });
+      }
     }
 
-    const user = await getUserByEmailOrWhatsApp(query);
     if (!user) {
-      return res.json({ success: true, found: false, message: 'No se encontró un perfil registrado con esos datos.' });
+      return res.json({ success: true, found: false, message: 'No se encontró un perfil registrado.' });
     }
+
+    const profileToken = signProfileToken(user.id, user.email);
 
     return res.json({
       success: true,
       found: true,
+      profileToken,
       user: {
         id: user.id,
         email: user.email,
@@ -329,12 +619,65 @@ app.get(['/api/user/profile', '/user/profile'], async (req, res) => {
         longitude: user.longitude,
         timezone: user.timezone,
         whatsapp: user.whatsapp,
+        credits: typeof user.credits === 'number' ? user.credits : 5,
         suscripcion_activa: Boolean(user.suscripcion_activa),
       },
     });
   } catch (error: any) {
     console.error('Error al consultar perfil de usuario:', error);
     return res.status(500).json({ success: false, error: error.message || 'Error al buscar perfil' });
+  }
+});
+
+// Sincronizar o consumir créditos persistentes del usuario autenticado por token
+app.post(['/api/user/credits/consume', '/user/credits/consume'], async (req, res) => {
+  try {
+    const tokenData = extractRequestProfileToken(req);
+    if (!tokenData) {
+      return res.status(401).json({ success: false, error: 'Sesión de perfil no vinculada o expirada.' });
+    }
+
+    const result = await consumeUserCredit(tokenData.userId);
+    return res.json({
+      success: result.success,
+      credits: result.credits,
+    });
+  } catch (error: any) {
+    console.error('Error al consumir crédito en Supabase:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al actualizar créditos' });
+  }
+});
+
+// Obtener el audio matutino más reciente del suscriptor para el reproductor web
+app.get(['/api/user/daily-audio', '/user/daily-audio'], async (req, res) => {
+  try {
+    const tokenData = extractRequestProfileToken(req);
+    if (!tokenData) {
+      return res.status(401).json({ success: false, error: 'Vincula tu perfil primero para escuchar tu audio diario.' });
+    }
+
+    const user = await getUserById(tokenData.userId);
+    if (!user || !user.suscripcion_activa) {
+      return res.status(403).json({ success: false, error: 'Requiere suscripción activa a Faro Diario.' });
+    }
+
+    const targetDate = String(req.query.date || new Date().toISOString().split('T')[0]);
+    const cached = await getDailyAudio(user.id, targetDate);
+    if (!cached || cached.status !== 'ready') {
+      return res.json({ success: true, available: false });
+    }
+
+    const signedUrl = (await getSignedAudioUrl(user.id, targetDate)) || cached.audio_url;
+    return res.json({
+      success: true,
+      available: true,
+      fecha: cached.fecha,
+      audioUrl: signedUrl,
+      textoGenerado: cached.texto_generado,
+    });
+  } catch (error: any) {
+    console.error('Error al obtener audio diario del usuario:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al obtener audio diario' });
   }
 });
 
@@ -676,17 +1019,23 @@ app.post(['/api/synthesis', '/synthesis'], async (req, res) => {
 // Google Assistant Fulfillment Webhook
 app.use('/api/assistant/webhook', createAssistantRouter());
 
-// Endpoint para disparar manualmente o via cron la generación de audio diario
-app.post(['/api/scheduler/run-daily', '/scheduler/run-daily'], async (req, res) => {
-  const secret = process.env.SCHEDULER_SECRET;
+// Endpoint para disparar manualmente (POST) o via Vercel Cron (GET) la generación de audio diario
+app.all(['/api/scheduler/run-daily', '/scheduler/run-daily'], async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  const secret = process.env.CRON_SECRET || process.env.SCHEDULER_SECRET;
   if (secret) {
     const authHeader = req.headers['authorization'];
-    if (!authHeader || authHeader !== `Bearer ${secret}`) {
+    const valid =
+      authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+      authHeader === `Bearer ${process.env.SCHEDULER_SECRET}`;
+    if (!valid) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
   }
   try {
-    const targetDate = req.body?.date || undefined;
+    const targetDate = (req.body?.date || req.query?.date || undefined) as string | undefined;
     const result = await runDailyAudioGeneration(targetDate);
     return res.json(result);
   } catch (err: any) {
@@ -694,53 +1043,142 @@ app.post(['/api/scheduler/run-daily', '/scheduler/run-daily'], async (req, res) 
   }
 });
 
-// Setup Vite middleware in dev or static files in production
-export async function startServer() {
+// Endpoint protegido para verificar el envío real de WhatsApp a un número de prueba
+app.post(['/api/scheduler/test-whatsapp', '/scheduler/test-whatsapp'], async (req, res) => {
+  const secret = process.env.CRON_SECRET || process.env.SCHEDULER_SECRET;
+  const authHeader = req.headers['authorization'];
+  const tokenData = extractRequestProfileToken(req);
+
+  const hasValidSecret =
+    Boolean(secret) &&
+    (authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+      authHeader === `Bearer ${process.env.SCHEDULER_SECRET}`);
+
+  if (!hasValidSecret && !tokenData) {
+    return res.status(401).json({
+      success: false,
+      error: 'Autorización requerida (Bearer SCHEDULER_SECRET/CRON_SECRET o sesión de perfil).',
+    });
+  }
+
+  try {
+    const { toPhone, nombre, fecha_nacimiento, hora_nacimiento, lugar_nacimiento, latitude, longitude, timezone } = req.body || {};
+    if (!toPhone || String(toPhone).trim().length < 8) {
+      return res.status(400).json({ success: false, error: 'Ingresa un número toPhone con código de país (ej. +593999429478).' });
+    }
+
+    const userForCalc = {
+      id: tokenData?.userId || 'wa_test',
+      nombre: nombre || 'Viajero de la Vida',
+      fecha_nacimiento: fecha_nacimiento || '1990-05-15',
+      hora_nacimiento: hora_nacimiento || '12:00',
+      lugar_nacimiento: lugar_nacimiento || 'Quito, Ecuador',
+      latitude: typeof latitude === 'number' ? latitude : -0.1807,
+      longitude: typeof longitude === 'number' ? longitude : -78.4678,
+      timezone: timezone || 'America/Guayaquil',
+    };
+
+    const transits = await computeDailyTransitsPoint4(userForCalc, new Date());
+    const scriptText = transits.sintesisAudioMatutino || transits.textoPunto4;
+    const appUrl = process.env.APP_URL || 'https://www.farobiografico.com';
+
+    const waRes = await sendDailyWhatsAppAudio({
+      toPhone: String(toPhone),
+      userName: userForCalc.nombre,
+      fecha: transits.fecha,
+      audioUrl: appUrl,
+      scriptText,
+    });
+
+    return res.status(waRes.sent ? 200 : 400).json({
+      success: waRes.sent,
+      ...waRes,
+      fecha: transits.fecha,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || String(err) });
+  }
+});
+
+// Attach Vite middleware in dev or static files in production onto an http.Server
+export async function attachAppToServer(httpServer: http.Server) {
   const isProduction = process.env.NODE_ENV === 'production';
   const distPath = path.join(process.cwd(), 'dist');
 
   if (!isProduction) {
-    try {
-      console.log('Starting server in DEVELOPMENT mode with Vite middleware...');
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: {
-          middlewareMode: true,
-          hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
-        },
-        appType: 'custom',
-      });
-      app.use(vite.middlewares);
+    console.log('Starting server in DEVELOPMENT mode with Vite middleware...');
+    let viteInstance: any = null;
 
-      // Handle root and client-side navigation in dev
-      app.get('*', async (req, res, next) => {
-        if (req.path.startsWith('/api')) {
-          return next();
-        }
-        const ext = path.extname(req.path);
-        if (ext && ext !== '.html') {
-          return res.status(404).send('Not found');
-        }
-        try {
-          const url = req.originalUrl;
-          const rootIndex = path.join(process.cwd(), 'index.html');
-          if (fs.existsSync(rootIndex)) {
-            let template = fs.readFileSync(rootIndex, 'utf-8');
-            template = await vite.transformIndexHtml(url, template);
-            return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-          }
-          return next();
-        } catch (e) {
-          vite.ssrFixStacktrace(e as Error);
-          next(e);
-        }
-      });
-    } catch (err) {
-      console.warn('Vite middleware could not be loaded in dev, falling back to static:', err);
-      if (fs.existsSync(distPath)) {
-        app.use(express.static(distPath));
+    const viteReadyPromise = (async () => {
+      try {
+        const { createServer: createViteServer } = await import('vite');
+        const disableHmr = process.env.DISABLE_HMR === 'true' || Boolean(process.env.DEFAULT_APP_PORT);
+        viteInstance = await createViteServer({
+          server: {
+            middlewareMode: true,
+            hmr: disableHmr ? false : { server: httpServer },
+            watch: disableHmr
+              ? null
+              : { ignored: ['**/ephe/**', '**/dist/**', '**/scripts/**', '**/.git/**'] },
+          },
+          appType: 'custom',
+        });
+      } catch (err) {
+        console.warn('Vite middleware could not be loaded in dev, falling back to static:', err);
       }
+    })();
+
+    app.use(async (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      await viteReadyPromise;
+      if (viteInstance) {
+        return viteInstance.middlewares(req, res, next);
+      }
+      return next();
+    });
+
+    if (fs.existsSync(distPath)) {
+      app.use(async (req, res, next) => {
+        await viteReadyPromise;
+        if (!viteInstance) {
+          return express.static(distPath)(req, res, next);
+        }
+        return next();
+      });
     }
+
+    // Handle root and client-side navigation in dev
+    app.get('*', async (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      const ext = path.extname(req.path);
+      if (ext && ext !== '.html') {
+        return res.status(404).send('Not found');
+      }
+      await viteReadyPromise;
+      try {
+        const url = req.originalUrl;
+        const rootIndex = path.join(process.cwd(), 'index.html');
+        if (viteInstance && fs.existsSync(rootIndex)) {
+          let template = fs.readFileSync(rootIndex, 'utf-8');
+          template = await viteInstance.transformIndexHtml(url, template);
+          return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+        }
+        const distIndex = path.join(distPath, 'index.html');
+        if (fs.existsSync(distIndex)) {
+          return res.sendFile(distIndex);
+        }
+        return next();
+      } catch (e) {
+        if (viteInstance) {
+          viteInstance.ssrFixStacktrace(e as Error);
+        }
+        next(e);
+      }
+    });
   } else {
     console.log('Starting server in PRODUCTION mode...');
     let hasStaticDist = fs.existsSync(path.join(distPath, 'index.html'));
@@ -780,10 +1218,21 @@ export async function startServer() {
       return res.status(200).type('html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Faro Biográfico</title></head><body><div id="root">Cargando aplicación...</div></body></html>`);
     });
   }
+}
 
-  app.listen(PORT, '0.0.0.0', () => {
+export async function startServer() {
+  const httpServer = http.createServer(app);
+  await attachAppToServer(httpServer);
+
+  httpServer.on('error', (err) => {
+    console.error('HTTP server error:', err);
+  });
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Faro Biográfico server running on port ${PORT}`);
   });
+
+  return httpServer;
 }
 
 export default app;
