@@ -48,10 +48,16 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
       const q = encodeURIComponent(identifier.trim());
       const bd = encodeURIComponent(birthDate.trim());
       const res = await fetch(`/api/user/profile?q=${q}&birthDate=${bd}`);
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(`Respuesta inválida del servidor (HTTP ${res.status}).`);
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al verificar el perfil.');
+        throw new Error(data.error || `Error al verificar el perfil (HTTP ${res.status}).`);
       }
 
       if (!data.found || !data.user) {

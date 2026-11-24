@@ -10,17 +10,17 @@ import {
   PlanetPosition,
   TransitAspect,
   ZodiacSign,
-} from '../src/types';
+} from '../src/types.js';
 import {
   calculateExactAge,
   calculateLunarNodeData,
   calculateSeptenioData,
   calculateYearOfLifeAnalysis,
-} from '../src/utils/anthroposophyEngine';
-import { HOUSE_THEMES, PLANET_INFO, ZODIAC_SIGNS } from '../src/utils/astrologyEngine';
-import { getTransitExplanation } from '../src/utils/transitExplanations';
-import { calculateHistoricalTimezoneOffset } from '../src/data/cities';
-import { calculateCompleteChart } from '../src/utils/calculator';
+} from '../src/utils/anthroposophyEngine.js';
+import { HOUSE_THEMES, PLANET_INFO, ZODIAC_SIGNS } from '../src/utils/astrologyEngine.js';
+import { getTransitExplanation } from '../src/utils/transitExplanations.js';
+import { calculateHistoricalTimezoneOffset } from '../src/data/cities.js';
+import { calculateCompleteChart } from '../src/utils/calculator.js';
 
 // Safely load Swiss Ephemeris native module if available
 let sweph: any = null;
