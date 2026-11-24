@@ -14,7 +14,15 @@ import { CreditModal } from './components/CreditModal';
 import { LegalModal, LegalTab } from './components/LegalModal';
 import { SubscriptionConfirmModal } from './components/SubscriptionConfirmModal';
 import { RestoreProfileModal } from './components/RestoreProfileModal';
-import { getCreditBalance, subscribeToCredits, addCredits } from './utils/creditManager';
+import {
+  getCreditBalance,
+  subscribeToCredits,
+  addCredits,
+  getProfileToken,
+  setProfileToken,
+  clearProfileToken,
+  setCreditBalanceFromServer,
+} from './utils/creditManager';
 import {
   TableProperties,
   Compass,
@@ -163,11 +171,39 @@ export default function App() {
     }
   }, []);
 
-  // Subscribe to credit balance changes
+  // Subscribe to credit balance changes and refresh server-backed credits if profileToken exists
   useEffect(() => {
     const unsubscribe = subscribeToCredits((newBalance) => {
       setCreditBalance(newBalance);
     });
+
+    const token = getProfileToken();
+    if (token && typeof window !== 'undefined') {
+      fetch('/api/user/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(async (res) => {
+          if (res.status === 401) {
+            clearProfileToken();
+            return null;
+          }
+          return res.ok ? res.json() : null;
+        })
+        .then((data) => {
+          if (data?.found && data.user) {
+            if (data.profileToken) {
+              setProfileToken(data.profileToken);
+            }
+            if (typeof data.user.credits === 'number') {
+              setCreditBalanceFromServer(data.user.credits);
+            }
+          }
+        })
+        .catch(() => {
+          // Silencioso si no hay conexión o backend DB aún sin configurar
+        });
+    }
+
     return unsubscribe;
   }, []);
 

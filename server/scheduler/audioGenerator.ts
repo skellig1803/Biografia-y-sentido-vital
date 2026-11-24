@@ -105,7 +105,7 @@ REGLAS CRÍTICAS OBLIGATORIAS:
    - Saludo con su nombre: "Buenos días, ${user.nombre}. Tu faro para hoy, [Día]:"
    - La oportunidad práctica del día en el trabajo o la vida cotidiana.
    - El punto de atención o cuidado situacional a modular con serenidad.
-   - Cierre breve inspirador bajo el modelo EGM (ligera presencia del día).
+   - Cierre breve inspirador centrado en la presencia viva y ligera del día (sin usar siglas técnicas ni metáforas de animales).
 5. FORMATO DE SALIDA: Entrega ÚNICAMENTE el texto que será leído en voz alta, sin comillas, sin viñetas, sin negritas Markdown ni explicaciones adicionales.`;
 
   // 1. Intentar con Gemini

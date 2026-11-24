@@ -189,8 +189,8 @@ A partir de tus datos individuales de este septenio, tu alma está convocada a i
 2. **${challenges[1] || 'Superación de patrones automáticos en favor de la libertad creadora.'}**
 3. **${challenges[2] || 'Equilibrio entre las aspiraciones del corazón y la responsabilidad práctica terrenal.'}**
 
-### Articulación con tu Tríada Natal y el Modelo Elefante-Pez Dorado (EGM)
-Desde la metodología biográfica del Modelo Elefante-Pez Dorado (EGM), este septenio consolida la «Memoria del Elefante»: las matrices kármicas, aprendizajes y raíces de destino que tu alma no olvida y que sustentan tu sentido de coherencia.
+### Articulación con tu Tríada Natal y la Memoria Biográfica
+Desde la mirada de la biografía antroposófica, este septenio consolida la memoria profunda de tu camino: las matrices de destino, aprendizajes y raíces que tu alma atesora a lo largo del tiempo y que sustentan tu sentido de coherencia.
 Tu tríada constitutiva —**Sol en ${sun}**, **Luna en ${moon}** y **Ascendente en ${asc}**— ofrece el instrumental específico para encarnar este septenio: tu **Sol en ${sun}** provee el centro consciente de gravedad y la brújula ética para no perderte; tu **Luna en ${moon}** revela cómo procesas anímicamente las tensiones del ciclo; y tu **Ascendente en ${asc}** es la vestidura y estilo dinámico con el que encaras el mundo exterior y materializas tus propósitos cotidianos.`;
 }
 
@@ -526,8 +526,8 @@ function buildSynastryDailySynthesis(input: SynthesisFallbackInput): string {
   }
 
   const advice = challenging.length > 0
-    ? `Respira y toma distancia antes de reaccionar. Bajo la sabiduría ligera del «Pez Dorado» (EGM), habita el presente soltando el apego a fricciones pasajeras: modula el ritmo de tus respuestas, establece prioridades realistas y aprovecha los aspectos fluidos de tu carta para convertir cualquier roce en un ejercicio de templanza y maestría personal.`
-    : `Bajo la sabiduría ligera del «Pez Dorado» (EGM), habita tu jornada con frescura y presencia viva: aprovecha la receptividad del entorno para cerrar conversaciones clave y ordenar tus metas del día, manteniendo una cadencia constante sin exigirte más de lo razonable.`;
+    ? `Respira y toma distancia antes de reaccionar. Habita el presente con ligereza interior, soltando el apego a fricciones pasajeras: modula el ritmo de tus respuestas, establece prioridades realistas y aprovecha los aspectos fluidos de tu carta para convertir cualquier roce en un ejercicio de templanza y maestría personal.`
+    : `Habita tu jornada con frescura y presencia viva: aprovecha la receptividad del entorno para cerrar conversaciones clave y ordenar tus metas del día, manteniendo una cadencia constante sin exigirte más de lo razonable.`;
 
   return `${intro}
 

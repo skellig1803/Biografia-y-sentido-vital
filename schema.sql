@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     longitude DOUBLE PRECISION NULL,
     timezone TEXT NOT NULL DEFAULT 'America/Bogota',
     whatsapp TEXT NULL,
+    credits INTEGER NOT NULL DEFAULT 5,
     suscripcion_activa BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -29,6 +30,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION NULL
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION NULL;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'America/Bogota';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS whatsapp TEXT NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS credits INTEGER NOT NULL DEFAULT 5;
 
 -- Índices para búsquedas rápidas por correo electrónico y WhatsApp
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users (email);

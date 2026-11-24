@@ -153,9 +153,35 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
 const STORAGE_KEY = 'biografia_vital_credits';
 const TRANSACTIONS_KEY = 'biografia_vital_transactions';
 const WELCOME_5_KEY = 'biografia_vital_welcome_5_granted_v2';
+const PROFILE_TOKEN_KEY = 'faro_biografico_profile_token';
 
 type CreditListener = (balance: number) => void;
 const listeners = new Set<CreditListener>();
+
+export function getProfileToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(PROFILE_TOKEN_KEY);
+}
+
+export function setProfileToken(token: string): void {
+  if (typeof window === 'undefined' || !token) return;
+  localStorage.setItem(PROFILE_TOKEN_KEY, token);
+}
+
+export function clearProfileToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(PROFILE_TOKEN_KEY);
+}
+
+export function setCreditBalanceFromServer(serverCredits: number): number {
+  const safe = Math.max(0, Math.floor(Number(serverCredits) || 0));
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, safe.toString());
+    localStorage.setItem(WELCOME_5_KEY, 'true');
+  }
+  notifyListeners(safe);
+  return safe;
+}
 
 export function getCreditBalance(): number {
   if (typeof window === 'undefined') return INITIAL_WELCOME_CREDITS;
@@ -284,6 +310,29 @@ export function consumeCredit(reason: string = 'Lectura Biográfica con IA'): bo
     balanceAfter: updated,
   });
   notifyListeners(updated);
+
+  // Sincronizar consumo con Supabase si el usuario tiene perfil vinculado
+  const token = getProfileToken();
+  if (token && typeof window !== 'undefined') {
+    fetch('/api/user/credits/consume', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ reason }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.credits === 'number') {
+          setCreditBalanceFromServer(data.credits);
+        }
+      })
+      .catch((err) => {
+        console.warn('No se pudo sincronizar consumo de crédito en servidor:', err);
+      });
+  }
+
   return true;
 }
 

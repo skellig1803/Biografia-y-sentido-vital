@@ -76,9 +76,9 @@ async function runTests() {
   }
 
   // -------------------------------------------------------------------------
-  // TEST 2: Tránsitos Diarios & Consciencia del Pez Dorado (EGM Micro-ritmo)
+  // TEST 2: Tránsitos Diarios & Presencia Cotidiana
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 2: Tránsitos Diarios & Consciencia del Pez Dorado (EGM) ---');
+  console.log('\n--- TEST 2: Tránsitos Diarios & Presencia Cotidiana ---');
   const targetDate = new Date();
   const dailyResult = await computeDailyTransitsPoint4(sampleUser, targetDate);
 
@@ -89,9 +89,11 @@ async function runTests() {
   );
 
   assert(
-    dailyResult.textoPunto4.includes('EGM') || dailyResult.textoPunto4.includes('Pez Dorado'),
-    'Texto de Tránsitos Diarios incorpora la perspectiva EGM / Pez Dorado',
-    'Verificado en la sección de orientación del día'
+    !dailyResult.textoPunto4.includes('EGM') &&
+      !dailyResult.textoPunto4.includes('Pez Dorado') &&
+      !dailyResult.textoPunto4.includes('Elefante'),
+    'Texto de Tránsitos Diarios libre de jerga técnica interna (EGM/animales)',
+    'Lenguaje puramente humano y astrológico verificado'
   );
 
   // -------------------------------------------------------------------------
@@ -120,9 +122,9 @@ async function runTests() {
   );
 
   // -------------------------------------------------------------------------
-  // TEST 4: Síntesis Biográfica Integral EGM (Las 4 Secciones)
+  // TEST 4: Síntesis Biográfica Integral (Las 4 Secciones sin jerga interna)
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 4: Síntesis Integral EGM (Polaridad Elefante / Pez Dorado) ---');
+  console.log('\n--- TEST 4: Síntesis Biográfica Integral (Las 4 Secciones) ---');
   const synthesisInput: SynthesisFallbackInput = {
     name: sampleUser.nombre,
     exactAgeFormatted: '37 años y 4 meses',
@@ -139,7 +141,7 @@ async function runTests() {
 
   assert(
     fullSynthesis.includes('## 1. La Esencia Biográfica y el Reto del Septenio Presente'),
-    'Sección 1 (Septenio / Macro-ritmo) presente y completa'
+    'Sección 1 (Septenio / Memoria Biográfica) presente y completa'
   );
 
   assert(
@@ -158,9 +160,11 @@ async function runTests() {
   );
 
   assert(
-    fullSynthesis.includes('Elefante') && fullSynthesis.includes('Pez Dorado'),
-    'Articulación explícita de ambas dimensiones del modelo EGM en la síntesis',
-    'Dimensión Elefante en Sección 1 & Dimensión Pez Dorado en Sección 4'
+    !fullSynthesis.includes('EGM') &&
+      !fullSynthesis.includes('Elefante') &&
+      !fullSynthesis.includes('Pez Dorado'),
+    'Síntesis integral libre de referencias técnicas o metáforas internas para el usuario',
+    'Redacción limpia antroposófica confirmada'
   );
 
   // -------------------------------------------------------------------------

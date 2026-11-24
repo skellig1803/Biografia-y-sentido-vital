@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BirthData } from '../types';
+import { setCreditBalanceFromServer, setProfileToken } from '../utils/creditManager';
 import {
   X,
   UserCheck,
@@ -8,11 +9,9 @@ import {
   AlertCircle,
   Loader2,
   Calendar,
-  Clock,
   MapPin,
   Sparkles,
   Phone,
-  Mail,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -28,27 +27,31 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
   onProfileRestored,
 }) => {
   const [identifier, setIdentifier] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [foundUser, setFoundUser] = useState<any | null>(null);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier.trim()) return;
+    if (!identifier.trim() || !birthDate) return;
 
     setIsLoading(true);
     setErrorMsg(null);
     setFoundUser(null);
+    setPendingToken(null);
 
     try {
       const q = encodeURIComponent(identifier.trim());
-      const res = await fetch(`/api/user/profile?q=${q}`);
+      const bd = encodeURIComponent(birthDate.trim());
+      const res = await fetch(`/api/user/profile?q=${q}&birthDate=${bd}`);
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al buscar el perfil.');
+        throw new Error(data.error || 'Error al verificar el perfil.');
       }
 
       if (!data.found || !data.user) {
@@ -57,6 +60,9 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
       }
 
       setFoundUser(data.user);
+      if (data.profileToken) {
+        setPendingToken(data.profileToken);
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error de conexión con el servidor.');
     } finally {
@@ -66,6 +72,13 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
 
   const handleApply = () => {
     if (!foundUser) return;
+
+    if (pendingToken) {
+      setProfileToken(pendingToken);
+    }
+    if (typeof foundUser.credits === 'number') {
+      setCreditBalanceFromServer(foundUser.credits);
+    }
 
     const restoredData: BirthData = {
       name: foundUser.nombre,
@@ -114,11 +127,11 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
         {/* Search body */}
         <div className="p-6 space-y-4">
           <p className="text-xs text-stone-300 leading-relaxed">
-            Si te conectas desde otro dispositivo, cambiaste de navegador o borraste las cookies, ingresa tu <strong>correo electrónico</strong> o tu <strong>número de WhatsApp</strong> para cargar tu ficha y calcular tu carta natal al instante:
+            Si te conectas desde otro dispositivo o navegador, ingresa tu <strong>correo electrónico o WhatsApp</strong> junto con tu <strong>fecha de nacimiento</strong> para verificar tu identidad y sincronizar tus datos y créditos:
           </p>
 
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
               <input
                 type="text"
@@ -129,17 +142,31 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
                 className="w-full pl-9 pr-3 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-xs text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60"
               />
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-semibold rounded-xl transition-all cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <span>Buscar</span>
-              )}
-            </button>
+
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+                <input
+                  type="date"
+                  required
+                  aria-label="Fecha de nacimiento para verificación"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-xs text-stone-100 focus:outline-none focus:border-amber-500/60"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-semibold rounded-xl transition-all cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>Verificar</span>
+                )}
+              </button>
+            </div>
           </form>
 
           {errorMsg && (
@@ -156,14 +183,21 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs font-semibold text-emerald-300">
-                    ¡Perfil encontrado!
+                    ¡Identidad verificada!
                   </span>
                 </div>
-                {foundUser.suscripcion_activa && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                    Suscripción Activa
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {typeof foundUser.credits === 'number' && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      {foundUser.credits} créditos
+                    </span>
+                  )}
+                  {foundUser.suscripcion_activa && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                      Suscripción Activa
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="text-xs space-y-1.5 text-stone-300 pt-1">
@@ -194,7 +228,7 @@ export const RestoreProfileModal: React.FC<RestoreProfileModalProps> = ({
                 className="w-full mt-2 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-stone-950 text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5 text-stone-950" />
-                <span>Cargar esta Carta y Activar en Pantalla</span>
+                <span>Cargar esta Carta y Sincronizar Créditos</span>
               </button>
             </div>
           )}
