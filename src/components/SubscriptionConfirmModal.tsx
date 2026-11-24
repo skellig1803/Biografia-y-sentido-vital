@@ -106,9 +106,15 @@ export const SubscriptionConfirmModal: React.FC<SubscriptionConfirmModalProps> =
         }),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(`Respuesta inválida del servidor (HTTP ${res.status}).`);
+      }
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'No se pudo generar el audio de prueba.');
+        throw new Error(data.error || `No se pudo generar el audio de prueba (HTTP ${res.status}).`);
       }
 
       setTestAudioUrl(data.audioDataUrl);
@@ -180,9 +186,15 @@ export const SubscriptionConfirmModal: React.FC<SubscriptionConfirmModalProps> =
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        throw new Error(`Respuesta inválida del servidor (HTTP ${res.status}).`);
+      }
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Error al guardar perfil en el servidor.');
+        throw new Error(data.error || `Error al guardar perfil en el servidor (HTTP ${res.status}).`);
       }
 
       if (data.profileToken) {

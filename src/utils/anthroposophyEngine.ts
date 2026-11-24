@@ -5,7 +5,7 @@ import {
   SeptenioData,
   YearOfLifeAnalysis,
   ZodiacSign,
-} from '../types';
+} from '../types.js';
 
 export const LUNAR_NODE_GUIDANCE: Record<
   ZodiacSign,

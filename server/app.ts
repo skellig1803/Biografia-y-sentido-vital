@@ -80,19 +80,32 @@ app.use(express.json({ limit: '5mb' }));
 
 // Middleware to normalize rewritten paths from Vercel Serverless Function proxy
 app.use((req, res, next) => {
-  const matchedPath = (req.headers['x-matched-path'] || req.headers['x-vercel-matched-path'] || req.headers['x-forwarded-uri']) as string;
-  if (matchedPath && matchedPath.startsWith('/api')) {
-    req.url = matchedPath;
-  } else if (req.query && req.query.__path) {
-    const qPath = Array.isArray(req.query.__path) ? req.query.__path.join('/') : req.query.__path;
-    req.url = `/api/${qPath}`;
-  } else if (req.url.startsWith('/api?__path=')) {
-    try {
-      const parsed = new URL(req.url, 'http://localhost');
-      const q = parsed.searchParams.get('__path');
-      if (q) req.url = `/api/${q}`;
-    } catch {}
-  }
+  try {
+    const rawUrl = req.url || '/';
+    const parsed = new URL(rawUrl, 'http://localhost');
+    const qPath = parsed.searchParams.get('__path') || (req.query?.__path as string | undefined);
+
+    if (qPath) {
+      parsed.searchParams.delete('__path');
+      const remainingQs = parsed.searchParams.toString();
+      const cleanPath = String(Array.isArray(qPath) ? qPath.join('/') : qPath).replace(/^\/+/, '');
+      req.url = `/api/${cleanPath}${remainingQs ? `?${remainingQs}` : ''}`;
+    } else {
+      const matchedPath = (
+        req.headers['x-vercel-matched-path'] ||
+        req.headers['x-matched-path'] ||
+        req.headers['x-forwarded-uri']
+      ) as string | undefined;
+      if (
+        matchedPath &&
+        matchedPath.startsWith('/api/') &&
+        !matchedPath.startsWith('/api/index') &&
+        !matchedPath.startsWith('/api/[')
+      ) {
+        req.url = matchedPath;
+      }
+    }
+  } catch {}
   next();
 });
 
@@ -1111,7 +1124,8 @@ export async function attachAppToServer(httpServer: http.Server) {
 
     const viteReadyPromise = (async () => {
       try {
-        const { createServer: createViteServer } = await import('vite');
+        const vitePkg = 'vite';
+        const { createServer: createViteServer } = await import(vitePkg);
         const disableHmr = process.env.DISABLE_HMR === 'true' || Boolean(process.env.DEFAULT_APP_PORT);
         viteInstance = await createViteServer({
           server: {

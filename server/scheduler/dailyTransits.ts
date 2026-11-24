@@ -1,5 +1,5 @@
 import { computeSwissEphemerisChart } from '../swissEphemeris.js';
-import type { BirthData, PlanetPosition } from '../../src/types';
+import type { BirthData, PlanetPosition } from '../../src/types.js';
 
 // ---------------------------------------------------------------------------
 // Interfaces públicas

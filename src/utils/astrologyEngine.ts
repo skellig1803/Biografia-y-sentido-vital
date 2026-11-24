@@ -6,8 +6,8 @@ import {
   PlanetPosition,
   TransitAspect,
   ZodiacSign,
-} from '../types';
-import { getTransitExplanation } from './transitExplanations';
+} from '../types.js';
+import { getTransitExplanation } from './transitExplanations.js';
 
 export const ZODIAC_SIGNS: {
   sign: ZodiacSign;

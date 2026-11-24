@@ -2,15 +2,15 @@ import {
   calculateAspects,
   calculateCurrentTransits,
   calculatePlanetaryPositions,
-} from './astrologyEngine';
+} from './astrologyEngine.js';
 import {
   calculateExactAge,
   calculateLunarNodeData,
   calculateSeptenioData,
   calculateYearOfLifeAnalysis,
-} from './anthroposophyEngine';
-import { calculateHistoricalTimezoneOffset } from '../data/cities';
-import { BirthData, NatalChartCalculationResult } from '../types';
+} from './anthroposophyEngine.js';
+import { calculateHistoricalTimezoneOffset } from '../data/cities.js';
+import { BirthData, NatalChartCalculationResult } from '../types.js';
 
 export async function calculateSwissChartAsync(
   birthData: BirthData

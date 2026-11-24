@@ -1,4 +1,4 @@
-import { PlanetId, ZodiacSign } from '../types';
+import { PlanetId, ZodiacSign } from '../types.js';
 
 export interface TransitExplanationResult {
   simpleExplanation: string;
