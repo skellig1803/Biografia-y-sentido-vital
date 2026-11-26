@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizeSupabaseUrl } from '../../lib/db.js';
 
 // ---------------------------------------------------------------------------
 // Configuración del bucket
@@ -15,8 +16,13 @@ const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'daily-audio';
  * lo que permite operaciones de almacenamiento sin restricciones de RLS.
  */
 function getStorageClient() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { url: supabaseUrl } = normalizeSupabaseUrl(
+    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  );
+  const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '')
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .trim();
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
