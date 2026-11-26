@@ -24,6 +24,7 @@ import {
   getUserByEmailOrWhatsApp,
   addUserCredits,
   consumeUserCredit,
+  getSupabaseConfigDiagnostic,
 } from '../lib/db.js';
 import {
   upsertSubscription,
@@ -140,6 +141,7 @@ app.get(['/api/health', '/health'], (req, res) => {
     hasWhatsApp: Boolean(
       process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID
     ),
+    supabase: getSupabaseConfigDiagnostic(),
     organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
   });
 });
@@ -569,7 +571,11 @@ app.post(['/api/user/profile', '/user/profile'], async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error al guardar perfil de usuario:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al guardar perfil' });
+    const rawMsg = error?.message || 'Error al guardar perfil';
+    const friendlyMsg = rawMsg.includes('Invalid path specified in request URL')
+      ? 'Error de configuración en SUPABASE_URL en Vercel: asegúrate de que sea únicamente https://TU_PROYECTO.supabase.co (sin rutas adicionales como /rest/v1 o /dashboard).'
+      : rawMsg;
+    return res.status(500).json({ success: false, error: friendlyMsg });
   }
 });
 
@@ -638,7 +644,11 @@ app.get(['/api/user/profile', '/user/profile'], async (req, res) => {
     });
   } catch (error: any) {
     console.error('Error al consultar perfil de usuario:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al buscar perfil' });
+    const rawMsg = error?.message || 'Error al buscar perfil';
+    const friendlyMsg = rawMsg.includes('Invalid path specified in request URL')
+      ? 'Error de configuración en SUPABASE_URL en Vercel: asegúrate de que sea únicamente https://TU_PROYECTO.supabase.co (sin rutas adicionales).'
+      : rawMsg;
+    return res.status(500).json({ success: false, error: friendlyMsg });
   }
 });
 
