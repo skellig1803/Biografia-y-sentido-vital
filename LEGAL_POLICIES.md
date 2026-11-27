@@ -22,21 +22,21 @@ El software funciona como un motor analítico y computacional basado en:
 * **Suscripción «Faro Diario»:** Servicio recurrente mensual ($7.99 USD/mes) que habilita el acceso continuo a micro-audios matutinos personalizados de 45 segundos. Se renueva automáticamente de forma mensual salvo cancelación previa.
 * **Rectificación Biográfica Artesanal:** Servicio técnico personalizado de ajuste horario con entrega diferida en formato informe en un plazo máximo de 3 días laborables.
 
-### 1.4 Pasarela de Pago y Vendedor Registrado (Merchant of Record)
-Las transacciones comerciales son procesadas de manera segura a través de **Polar Software Inc. (Polar.sh)**, que actúa como Merchant of Record. Polar.sh asume la recaudación del pago, la gestión y declaración de impuestos aplicables (IVA, GST, Sales Tax) y la emisión de facturas oficiales.
+### 1.4 Pasarelas de Pago y Procesamiento Seguro
+Las transacciones comerciales son procesadas de manera segura a través de **PayPal Business** (para cobros globales con tarjetas Visa, Mastercard, American Express o saldo PayPal) y **Payphone Ecuador** (para cobros locales con tarjetas de débito y crédito nacionales o mediante la aplicación Payphone).
 
 ---
 
 ## 2. Política de Reembolsos, Cancelaciones y Garantías (Refund Policy)
 
-Conforme a las directrices internacionales de comercio digital, leyes de protección al consumidor y las políticas de Polar.sh, Stripe y las redes de tarjetas Visa y Mastercard:
+Conforme a las directrices internacionales de comercio digital, leyes de protección al consumidor y las políticas de PayPal y Payphone:
 
 ### 2.1 Paquetes de Créditos de Informes Digitales
 * **Garantía de 14 días para créditos no utilizados:** Si adquieres un paquete de créditos y no has ejecutado ninguno, puedes solicitar un reembolso completo del 100% dentro de los 14 días naturales siguientes a la fecha de adquisición.
 * **Créditos consumidos:** Dado que la generación de un informe con IA incurre en un consumo computacional y entrega digital inmediata irreversible, los créditos ya ejecutados y visualizados no admiten devolución, salvo fallo técnico acreditado en la plataforma.
 
 ### 2.2 Suscripción Mensual «Faro Diario»
-* **Cancelación en cualquier momento:** El usuario puede cancelar su suscripción mensual en cualquier instante desde el Portal de Clientes de Polar.sh con un solo clic.
+* **Cancelación en cualquier momento:** El usuario puede cancelar su suscripción mensual en cualquier instante desde su panel de PayPal con un solo clic o solicitándolo a nuestro equipo de soporte.
 * **Sin permanencia ni penalización:** La cancelación detiene futuros cobros automáticos. El acceso se mantiene hasta la finalización del periodo mensual ya facturado.
 * **Cargos involuntarios:** Si se produjo una renovación automática no deseada y el usuario no ha utilizado el servicio durante ese ciclo, se aceptará la solicitud de reembolso si se notifica dentro de las primeras 48 horas posteriores al cargo.
 
@@ -50,7 +50,7 @@ Si durante la generación de un informe ocurre un error de conectividad, caída 
 ### 2.5 Procedimiento para Solicitar Reembolsos
 El cliente puede enviar un correo a `soporte@farobiografico.com` o `rodriguezb.jl@gmail.com` indicando:
 1. Correo electrónico utilizado en la compra.
-2. Número o ID de orden de Polar.sh.
+2. Número o ID de transacción de PayPal o Payphone.
 3. Motivo de la solicitud.
 * Plazo de respuesta y resolución: **menos de 24 horas laborables**.
 
@@ -58,18 +58,18 @@ El cliente puede enviar un correo a `soporte@farobiografico.com` o `rodriguezb.j
 
 ## 3. Política de Privacidad y Tratamiento de Datos (Privacy Policy)
 
-En estricto cumplimiento del Reglamento General de Protección de Datos (RGPD - UE 2016/679) y la Ley de Privacidad del Consumidor de California (CCPA):
+En estricto cumplimiento del Reglamento General de Protección de Datos (RGPD - UE 2016/679) y normativas de comercio digital:
 
 ### 3.1 Datos Recopilados
 * **Datos de Nacimiento:** Fecha, hora y lugar de nacimiento. Se procesan de forma transitoria y con el propósito exclusivo de computar las efemérides astronómicas y deducir los septenios vitales.
-* **Correo Electrónico:** Empleado para la emisión de facturas y la sincronización de créditos y suscripciones con la pasarela de pago Polar.sh.
+* **Correo Electrónico:** Empleado para la emisión de comprobantes y la sincronización de créditos y suscripciones con PayPal y Payphone.
 * **Métricas Anónimas de Uso:** Mediciones anónimas de rendimiento de la interfaz web provistas por Vercel Analytics, sin instalación de rastreadores publicitarios ni cookies de terceros invasivas.
 
 ### 3.2 Principio de No Venta de Datos
 Faro Biográfico **no vende, alquila, transfiere ni comercializa información personal ni datos de nacimiento a ningún intermediario de datos (data brokers), redes publicitarias ni entidades externas**.
 
 ### 3.3 Tratamiento de Medios de Pago
-Faro Biográfico **no recopila ni almacena en sus servidores números de tarjetas bancarias, códigos CVV ni datos financieros sensibles**. Todas las transacciones se realizan bajo los protocolos de seguridad y certificación PCI-DSS Nivel 1 de Polar Software Inc.
+Faro Biográfico **no recopila ni almacena en sus servidores números de tarjetas bancarias, códigos CVV ni datos financieros sensibles**. Todas las transacciones se realizan bajo los protocolos de seguridad y certificación PCI-DSS de PayPal (PayPal Inc.) y Payphone (Payphone S.A.).
 
 ---
 
@@ -77,7 +77,7 @@ Faro Biográfico **no recopila ni almacena en sus servidores números de tarjeta
 
 * **Nombre Comercial:** Faro Biográfico
 * **Actividad:** Software de generación automatizada de informes de análisis biográfico y desarrollo personal (SaaS).
-* **Entidad de Procesamiento y Facturación:** Polar Software Inc. (Merchant of Record).
+* **Entidades de Procesamiento:** PayPal Business (Cobros Internacionales) &amp; Payphone Ecuador (Cobros Locales).
 * **Moneda de Cobro:** Dólares Estadounidenses (USD).
 * **Correo Electrónico de Contacto y Soporte:** `rodriguezb.jl@gmail.com` / `soporte@farobiografico.com`
 * **Tiempo de Atención al Cliente:** De lunes a viernes, respuesta en &lt; 24h.

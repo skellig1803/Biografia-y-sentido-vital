@@ -99,7 +99,7 @@ export const TransitsPanel: React.FC<TransitsPanelProps> = ({
                 Suscripción Mensual
               </span>
               <p className="text-stone-300 text-[11px] leading-relaxed">
-                Activa tu suscripción mensual Faro Diario ($7.99/mes) gestionada con Polar.sh con renovación automática y cancelación con 1 clic en cualquier momento.
+                Activa tu suscripción mensual Faro Diario ($7.99/mes) protegida por PayPal Business o Payphone Ecuador con renovación automática y cancelación con 1 clic en cualquier momento.
               </p>
             </div>
 

@@ -82,54 +82,98 @@ export default function App() {
     setIsLegalModalOpen(true);
   };
 
+  const [pendingProvider, setPendingProvider] = useState<'paypal' | 'payphone'>('paypal');
+
   const openSubscriptionModal = (tab: 'credits' | 'services' = 'services') => {
     setCreditModalTab(tab);
     setIsCreditModalOpen(true);
   };
 
-  const openSubscriptionConfirmModal = (checkoutUrl?: string | null) => {
+  const openSubscriptionConfirmModal = (
+    checkoutUrl?: string | null,
+    provider: 'paypal' | 'payphone' = 'paypal'
+  ) => {
     setPendingCheckoutUrl(checkoutUrl || null);
+    setPendingProvider(provider);
     setIsSubscriptionConfirmOpen(true);
   };
 
-  // Detect Polar.sh return / success redirect in URL params
+  // Detect PayPal / Payphone / Polar return & success redirect in URL params
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment') || params.get('status');
-    const checkoutId = params.get('checkout_id') || params.get('id') || params.get('session_id');
+    const provider = params.get('provider') || (params.has('polar_success') ? 'polar' : 'paypal');
+    const checkoutId =
+      params.get('checkout_id') ||
+      params.get('id') ||
+      params.get('token') ||
+      params.get('session_id') ||
+      params.get('clientTransactionId');
     const plan = params.get('plan');
     const service = params.get('service');
 
-    if (paymentStatus === 'success' || params.has('polar_success')) {
-      const processedKey = `polar_processed_${checkoutId || 'success_tx'}`;
+    if (
+      paymentStatus === 'success' ||
+      params.has('polar_success') ||
+      params.has('paypal_success') ||
+      (params.has('id') && params.has('clientTransactionId'))
+    ) {
+      const processedKey = `payment_processed_${checkoutId || 'success_tx'}`;
       const alreadyProcessed = checkoutId ? sessionStorage.getItem(processedKey) : null;
 
       let added = 0;
       let title = '¡Pago Procesado con Éxito!';
-      let message = 'Tu transacción a través de Polar.sh se ha completado correctamente.';
+      const gatewayName = provider === 'payphone' ? 'Payphone' : provider === 'polar' ? 'Polar.sh' : 'PayPal';
+      let message = `Tu transacción a través de ${gatewayName} se ha completado correctamente.`;
 
       if (!alreadyProcessed) {
         if (plan === 'pack_single' || plan === 'single') {
           added = 1;
-          addCredits(1, 'Compra 1 Reporte de Trayectoria Vital vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          addCredits(1, `Compra 1 Reporte de Trayectoria Vital vía ${gatewayName}`, 'purchase', provider as any, checkoutId || undefined);
           message = 'Se ha acreditado 1 informe de Trayectoria Vital a tu monedero.';
-        } else if (plan === 'pack5') {
+        } else if (plan === 'pack5' || plan === 'pack_family') {
           added = 5;
-          addCredits(5, 'Compra Pack 5 Reportes de Análisis vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          addCredits(5, `Compra Pack 5 Reportes de Análisis vía ${gatewayName}`, 'purchase', provider as any, checkoutId || undefined);
           message = 'Se han acreditado 5 créditos para informes con IA a tu monedero.';
-        } else if (plan === 'pack15') {
+        } else if (plan === 'pack15' || plan === 'pack_professional') {
           added = 15;
-          addCredits(15, 'Compra Pack Profesional (15 Reportes) vía Polar.sh', 'purchase', 'polar', checkoutId || undefined);
+          addCredits(15, `Compra Pack Profesional (15 Reportes) vía ${gatewayName}`, 'purchase', provider as any, checkoutId || undefined);
           message = 'Se han acreditado 15 créditos profesionales con licencia de uso a tu monedero.';
         } else if (service === 'faro_diario') {
           title = '¡Suscripción a Faro Diario Activada!';
-          message = 'Tu suscripción mensual a los audios matutinos personalizados de 45 segundos ha sido confirmada vía Polar.sh.';
+          message = `Tu suscripción mensual a los audios matutinos personalizados de 45 segundos ha sido confirmada vía ${gatewayName}.`;
         } else if (service === 'rectificacion') {
           title = '¡Solicitud de Rectificación Recibida!';
           message = 'Tu orden de Rectificación Biográfica ha sido recibida con éxito. El equipo iniciará la revisión con atacires en breve.';
         } else {
-          message = 'Tu pago vía Polar.sh ha sido verificado. Tus créditos están disponibles en tu cuenta.';
+          message = `Tu pago vía ${gatewayName} ha sido verificado. Tus créditos están disponibles en tu cuenta.`;
+        }
+
+        // Si es Payphone con API, enviar confirmación al backend
+        if (provider === 'payphone' && params.get('id') && params.get('clientTransactionId')) {
+          fetch('/api/payphone/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: params.get('id'),
+              clientTransactionId: params.get('clientTransactionId'),
+              planId: plan,
+              serviceId: service,
+            }),
+          }).catch((err) => console.warn('Payphone auto-confirm error:', err));
+        }
+
+        // Si es PayPal con token de orden, capturarlo
+        if (provider === 'paypal' && params.get('token')) {
+          fetch('/api/paypal/capture-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: params.get('token'),
+              planId: plan,
+            }),
+          }).catch((err) => console.warn('PayPal auto-capture error:', err));
         }
 
         if (checkoutId) {
@@ -148,7 +192,7 @@ export default function App() {
         creditsAdded: added > 0 ? added : undefined,
       });
 
-      // Clean query params from the browser bar cleanly
+      // Limpiar query params de la URL de forma limpia
       try {
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -806,9 +850,9 @@ export default function App() {
         onCreditsUpdated={(newBal) => setCreditBalance(newBal)}
         onOpenLegal={openLegalModal}
         initialTab={creditModalTab}
-        onRequestSubscribeFaroDiario={(checkoutUrl) => {
+        onRequestSubscribeFaroDiario={(checkoutUrl, provider) => {
           setIsCreditModalOpen(false);
-          openSubscriptionConfirmModal(checkoutUrl);
+          openSubscriptionConfirmModal(checkoutUrl, provider);
         }}
       />
 
@@ -821,6 +865,7 @@ export default function App() {
           setBirthData(updatedData);
         }}
         checkoutUrl={pendingCheckoutUrl}
+        initialProvider={pendingProvider}
       />
 
       {/* Modal de Recuperación y Carga de Perfil en Dispositivos Nuevos */}
@@ -935,17 +980,17 @@ export default function App() {
               <span className="text-stone-700">•</span>
               <button
                 type="button"
-                onClick={() => openLegalModal('polar_guide')}
-                className="text-blue-400 hover:text-blue-300 underline font-medium transition-colors cursor-pointer"
+                onClick={() => openLegalModal('payment_guide')}
+                className="text-amber-400 hover:text-amber-300 underline font-medium transition-colors cursor-pointer"
               >
-                Guía Polar.sh
+                Guía PayPal &amp; Payphone
               </button>
             </div>
           </div>
 
           <div className="border-t border-stone-800/80 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-stone-500">
             <div>
-              © {new Date().getFullYear()} Faro Biográfico. Pagos seguros, facturación global e impuestos gestionados por <strong className="text-stone-400">Polar Software Inc. (Merchant of Record)</strong>.
+              © {new Date().getFullYear()} Faro Biográfico. Pagos seguros procesados por <strong className="text-stone-400">PayPal Business</strong> y <strong className="text-stone-400">Payphone Ecuador</strong>.
             </div>
             <div className="flex items-center gap-3 text-stone-400">
               <span>Soporte: rodriguezb.jl@gmail.com</span>

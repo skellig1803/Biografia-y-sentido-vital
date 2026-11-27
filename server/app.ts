@@ -131,27 +131,74 @@ app.get(['/api/health', '/health'], (req, res) => {
     status: 'ok',
     hasGeminiKey: Boolean(getResolvedApiKey()),
     hasDeepSeekKey: Boolean(getResolvedDeepSeekApiKey()),
-    provider: 'polar',
-    hasPolar: Boolean(
-      process.env.POLAR_ACCESS_TOKEN ||
-      process.env.POLAR_ORGANIZATION_SLUG ||
-      process.env.POLAR_CHECKOUT_URL_SINGLE ||
-      process.env.POLAR_CHECKOUT_URL_PACK5
+    providers: {
+      paypal: Boolean(
+        process.env.PAYPAL_CLIENT_ID ||
+        process.env.PAYPAL_CHECKOUT_URL_SINGLE ||
+        process.env.PAYPAL_CHECKOUT_URL_PACK5 ||
+        process.env.PAYPAL_CHECKOUT_URL_FARO_DIARIO
+      ),
+      payphone: Boolean(
+        process.env.PAYPHONE_TOKEN ||
+        process.env.PAYPHONE_URL_SINGLE ||
+        process.env.PAYPHONE_URL_PACK5 ||
+        process.env.PAYPHONE_URL_FARO_DIARIO
+      ),
+      polar: Boolean(
+        process.env.POLAR_ACCESS_TOKEN ||
+        process.env.POLAR_ORGANIZATION_SLUG ||
+        process.env.POLAR_CHECKOUT_URL_SINGLE
+      ),
+    },
+    hasPayPal: Boolean(
+      process.env.PAYPAL_CLIENT_ID ||
+      process.env.PAYPAL_CHECKOUT_URL_SINGLE ||
+      process.env.PAYPAL_CHECKOUT_URL_PACK5 ||
+      process.env.PAYPAL_CHECKOUT_URL_FARO_DIARIO
+    ),
+    hasPayphone: Boolean(
+      process.env.PAYPHONE_TOKEN ||
+      process.env.PAYPHONE_URL_SINGLE ||
+      process.env.PAYPHONE_URL_PACK5 ||
+      process.env.PAYPHONE_URL_FARO_DIARIO
     ),
     hasWhatsApp: Boolean(
       process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID
     ),
     supabase: getSupabaseConfigDiagnostic(),
-    organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
+    paypalMode: process.env.PAYPAL_MODE || 'live',
   });
 });
 
-// Polar.sh Billing, Products & Consulting Services Configuration endpoint
+// Billing, Products & Consulting Services Configuration endpoint (PayPal + Payphone)
 app.get(['/api/billing/config', '/billing/config'], (req, res) => {
+  const hasLivePayPal = Boolean(
+    process.env.PAYPAL_CLIENT_ID ||
+    process.env.PAYPAL_CHECKOUT_URL_SINGLE ||
+    process.env.PAYPAL_CHECKOUT_URL_PACK5 ||
+    process.env.PAYPAL_CHECKOUT_URL_FARO_DIARIO
+  );
+
+  const hasLivePayphone = Boolean(
+    process.env.PAYPHONE_TOKEN ||
+    process.env.PAYPHONE_URL_SINGLE ||
+    process.env.PAYPHONE_URL_PACK5 ||
+    process.env.PAYPHONE_URL_FARO_DIARIO
+  );
+
   res.json({
-    provider: 'polar',
+    primaryProvider: 'paypal',
+    secondaryProvider: 'payphone',
     currency: 'USD',
-    organizationSlug: process.env.POLAR_ORGANIZATION_SLUG || null,
+    paypalClientId: process.env.PAYPAL_CLIENT_ID || null,
+    paypalMode: process.env.PAYPAL_MODE || 'live',
+    hasLivePayPal,
+    hasLivePayphone,
+    hasLivePolar: Boolean(
+      process.env.POLAR_CHECKOUT_URL_SINGLE ||
+      process.env.POLAR_CHECKOUT_URL_PACK5 ||
+      process.env.POLAR_ACCESS_TOKEN
+    ),
     // 1. Paquetes de Créditos para "Faro Biográfico" (Reportes con IA)
     plans: [
       {
@@ -162,8 +209,10 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         typeLabel: 'Pago único (One-time purchase)',
         credits: 1,
         price: 3.99,
-        netEstimateUsd: 3.29,
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_SINGLE || process.env.LEMONSQUEEZY_CHECKOUT_URL_SINGLE || null,
+        netEstimateUsd: 3.49,
+        checkoutUrl: process.env.PAYPAL_CHECKOUT_URL_SINGLE || process.env.POLAR_CHECKOUT_URL_SINGLE || null,
+        paypalCheckoutUrl: process.env.PAYPAL_CHECKOUT_URL_SINGLE || null,
+        payphoneCheckoutUrl: process.env.PAYPHONE_URL_SINGLE || null,
         features: [
           '1 Reporte de Análisis Biográfico completo con IA',
           'Desglose de ejes de crecimiento y potencial evolutivo',
@@ -180,10 +229,12 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         credits: 5,
         price: 14.99,
         unitPriceUsd: 2.99,
-        netEstimateUsd: 13.74,
+        netEstimateUsd: 14.10,
         popular: true,
         savingsPercent: 25,
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_PACK5 || process.env.LEMONSQUEEZY_PACK5_URL || null,
+        checkoutUrl: process.env.PAYPAL_CHECKOUT_URL_PACK5 || process.env.POLAR_CHECKOUT_URL_PACK5 || null,
+        paypalCheckoutUrl: process.env.PAYPAL_CHECKOUT_URL_PACK5 || null,
+        payphoneCheckoutUrl: process.env.PAYPHONE_URL_PACK5 || null,
         features: [
           '5 Créditos sin fecha de caducidad',
           'Equivale a solo $2.99 USD por reporte (Ahorro 25%)',
@@ -200,9 +251,11 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         credits: 15,
         price: 29.99,
         unitPriceUsd: 1.99,
-        netEstimateUsd: 27.99,
+        netEstimateUsd: 28.50,
         savingsPercent: 50,
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_PACK15 || process.env.LEMONSQUEEZY_CHECKOUT_URL_PACK15 || null,
+        checkoutUrl: process.env.PAYPAL_CHECKOUT_URL_PACK15 || process.env.POLAR_CHECKOUT_URL_PACK15 || null,
+        paypalCheckoutUrl: process.env.PAYPAL_CHECKOUT_URL_PACK15 || null,
+        payphoneCheckoutUrl: process.env.PAYPHONE_URL_PACK15 || null,
         features: [
           '15 Créditos sin caducidad temporal',
           'Equivale a solo $1.99 USD por reporte (Ahorro 50%)',
@@ -221,14 +274,17 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         typeLabel: 'Suscripción Mensual',
         price: 7.99,
         billingInterval: 'mes',
-        netEstimateUsd: 6.79,
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_FARO_DIARIO || null,
+        netEstimateUsd: 7.35,
+        checkoutUrl: process.env.PAYPAL_CHECKOUT_URL_FARO_DIARIO || process.env.POLAR_CHECKOUT_URL_FARO_DIARIO || null,
+        paypalCheckoutUrl: process.env.PAYPAL_CHECKOUT_URL_FARO_DIARIO || null,
+        payphoneCheckoutUrl: process.env.PAYPHONE_URL_FARO_DIARIO || null,
+        paypalPlanId: process.env.PAYPAL_PLAN_ID_FARO_DIARIO || null,
         deliverable: 'Nota de voz matutina en WhatsApp y reproductor web privado (Nodo Lunar + Septenio + Nodo Anual + Tránsitos del día)',
         features: [
           'Nota de voz matutina personalizada generada cada día con IA',
           'Síntesis activa: Nodo Lunar + Septenio + Nodo Anual + Tránsitos diarios',
           'Entrega matutina directa a tu WhatsApp y reproductor web',
-          'Suscripción mensual recurrente gestionada por Polar.sh',
+          'Suscripción mensual recurrente vía PayPal ($7.99/mes) o Payphone Ecuador',
         ],
       },
       {
@@ -238,9 +294,11 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         type: 'one_time',
         typeLabel: 'Pago único (One-time purchase)',
         price: 80.00,
-        netEstimateUsd: 75.50,
+        netEstimateUsd: 76.50,
         deliverable: 'Entrega en 3 días laborables mediante revisión manual con atacires y formulario estructurado',
-        checkoutUrl: process.env.POLAR_CHECKOUT_URL_RECTIFICACION || null,
+        checkoutUrl: process.env.PAYPAL_CHECKOUT_URL_RECTIFICACION || process.env.POLAR_CHECKOUT_URL_RECTIFICACION || null,
+        paypalCheckoutUrl: process.env.PAYPAL_CHECKOUT_URL_RECTIFICACION || null,
+        payphoneCheckoutUrl: process.env.PAYPHONE_URL_RECTIFICACION || null,
         features: [
           'Revisión manual minuciosa y artesanal con técnica de atacires',
           'Formulario estructurado de eventos vitales e hitos pasados',
@@ -257,6 +315,8 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         price: null,
         deliverable: 'Coordinación directa por WhatsApp (+593 99 942 9478) para agendar tu sesión personalizada',
         checkoutUrl: null,
+        paypalCheckoutUrl: null,
+        payphoneCheckoutUrl: null,
         calendarUrl: 'https://wa.me/593999429478?text=Hola%2C%20me%20gustar%C3%ADa%20coordinar%20una%20Consulta%20Privada%20Individual%20de%20Biograf%C3%ADa%20Vital.',
         features: [
           'Sesión individual personalizada 1 a 1 (60 - 90 min)',
@@ -266,12 +326,6 @@ app.get(['/api/billing/config', '/billing/config'], (req, res) => {
         ],
       },
     ],
-    hasLivePolar: Boolean(
-      process.env.POLAR_CHECKOUT_URL_SINGLE ||
-      process.env.POLAR_CHECKOUT_URL_PACK5 ||
-      process.env.POLAR_ACCESS_TOKEN ||
-      process.env.POLAR_ORGANIZATION_SLUG
-    ),
   });
 });
 
@@ -350,6 +404,492 @@ function resolveCreditsForOrder(eventData: any): number {
   if (amountCents >= 300 && amountCents < 700) return 1;
   return 0;
 }
+
+// ========================================================
+// PAYPAL BUSINESS INTEGRATION (API & WEBHOOKS)
+// ========================================================
+function getPayPalApiBase(): string {
+  const mode = (process.env.PAYPAL_MODE || 'live').toLowerCase();
+  return mode === 'sandbox'
+    ? 'https://api-m.sandbox.paypal.com'
+    : 'https://api-m.paypal.com';
+}
+
+async function getPayPalAccessToken(): Promise<string | null> {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  try {
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const res = await fetch(`${getPayPalApiBase()}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[PayPal Auth] Error obtaining access token:', errText);
+      return null;
+    }
+    const data = (await res.json()) as any;
+    return data.access_token || null;
+  } catch (err) {
+    console.error('[PayPal Auth] Network error obtaining token:', err);
+    return null;
+  }
+}
+
+// Crear orden de cobro en PayPal (para paquetes de créditos o servicios únicos)
+app.post(['/api/paypal/create-order', '/paypal/create-order'], async (req, res) => {
+  try {
+    const { planId, serviceId, email } = req.body || {};
+    const accessToken = await getPayPalAccessToken();
+    if (!accessToken) {
+      return res.status(503).json({
+        success: false,
+        error: 'Las credenciales de PayPal (PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET) no están configuradas en el servidor.',
+      });
+    }
+
+    let value = '3.99';
+    let description = '1 Reporte de Trayectoria Vital';
+    if (planId === 'pack_professional' || planId === 'pack15') {
+      value = '29.99';
+      description = 'Pack Profesional (15 Reportes Biográficos)';
+    } else if (planId === 'pack_family' || planId === 'pack5') {
+      value = '14.99';
+      description = 'Pack 5 Reportes de Análisis Biográfico';
+    } else if (serviceId === 'service_rectificacion') {
+      value = '80.00';
+      description = 'Rectificación Biográfica de Carta Natal (Artesanal)';
+    }
+
+    const appUrl = (process.env.APP_URL || 'https://www.farobiografico.com').replace(/\/+$/, '');
+    const returnUrl = `${appUrl}/?payment=success&provider=paypal&plan=${planId || ''}&service=${serviceId || ''}`;
+    const cancelUrl = `${appUrl}/?payment=cancelled&provider=paypal`;
+
+    const orderPayload = {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: `faro_${Date.now()}`,
+          description,
+          custom_id: email ? String(email).trim().toLowerCase() : undefined,
+          amount: {
+            currency_code: 'USD',
+            value,
+          },
+        },
+      ],
+      application_context: {
+        brand_name: 'Faro Biográfico',
+        locale: 'es-ES',
+        landing_page: 'BILLING',
+        user_action: 'PAY_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    };
+
+    const resp = await fetch(`${getPayPalApiBase()}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(orderPayload),
+    });
+
+    const data = (await resp.json()) as any;
+    if (!resp.ok) {
+      console.error('[PayPal Create Order Error]', data);
+      return res.status(resp.status).json({ success: false, error: data.message || 'Error al crear orden en PayPal' });
+    }
+
+    const approvalUrl = data.links?.find((l: any) => l.rel === 'approve')?.href;
+    return res.json({
+      success: true,
+      orderId: data.id,
+      approvalUrl,
+    });
+  } catch (err: any) {
+    console.error('Error creating PayPal order:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Error interno en PayPal' });
+  }
+});
+
+// Capturar orden aprobada en PayPal y acreditar créditos
+app.post(['/api/paypal/capture-order', '/paypal/capture-order'], async (req, res) => {
+  try {
+    const { orderId, planId, email } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'orderId es requerido' });
+    }
+
+    const accessToken = await getPayPalAccessToken();
+    if (!accessToken) {
+      return res.status(503).json({ success: false, error: 'Credenciales de PayPal no configuradas' });
+    }
+
+    const resp = await fetch(`${getPayPalApiBase()}/v2/checkout/orders/${orderId}/capture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const captureData = (await resp.json()) as any;
+    if (!resp.ok || captureData.status !== 'COMPLETED') {
+      console.error('[PayPal Capture Error]', captureData);
+      return res.status(resp.status || 400).json({
+        success: false,
+        error: captureData?.message || 'No se pudo completar el cobro en PayPal.',
+      });
+    }
+
+    const payerEmail = (
+      email ||
+      captureData.payer?.email_address ||
+      captureData.purchase_units?.[0]?.custom_id ||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+    let creditsAdded = 0;
+    if (planId === 'pack_professional' || planId === 'pack15') creditsAdded = 15;
+    else if (planId === 'pack_family' || planId === 'pack5') creditsAdded = 5;
+    else if (planId === 'pack_single' || planId === 'single') creditsAdded = 1;
+    else {
+      const amountVal = parseFloat(captureData.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value || '0');
+      if (amountVal >= 25) creditsAdded = 15;
+      else if (amountVal >= 10) creditsAdded = 5;
+      else if (amountVal >= 3) creditsAdded = 1;
+    }
+
+    let newBalance: number | undefined;
+    if (payerEmail && creditsAdded > 0) {
+      try {
+        let user = await getUserByEmail(payerEmail);
+        if (!user) {
+          user = await createUser({
+            email: payerEmail,
+            nombre: captureData.payer?.name?.given_name || payerEmail.split('@')[0],
+            fecha_nacimiento: '1990-01-01',
+            suscripcion_activa: false,
+          });
+        }
+        if (user) {
+          newBalance = await addUserCredits(user.id, creditsAdded);
+          console.log(`[PayPal Capture] +${creditsAdded} créditos acreditados a ${payerEmail}. Balance: ${newBalance}`);
+        }
+      } catch (dbErr: any) {
+        console.warn('[PayPal Capture] Advertencia al sincronizar en Supabase:', dbErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      status: captureData.status,
+      orderId: captureData.id,
+      creditsAdded,
+      balance: newBalance,
+    });
+  } catch (err: any) {
+    console.error('Error capturing PayPal order:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Error capturando orden de PayPal' });
+  }
+});
+
+// Receptor de Webhooks de PayPal (para suscripciones y pagos completados)
+app.post(['/api/paypal/webhook', '/paypal/webhook'], async (req, res) => {
+  try {
+    const eventType = String(req.body?.event_type || '');
+    const resource = req.body?.resource || {};
+    console.log(`[PayPal Webhook] Evento recibido: ${eventType}`, { id: resource?.id });
+
+    const customerEmail = String(
+      resource?.subscriber?.email_address ||
+      resource?.payer?.email_address ||
+      resource?.custom_id ||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+    if (customerEmail) {
+      try {
+        let user = await getUserByEmail(customerEmail);
+        if (!user && (eventType.includes('SUBSCRIPTION') || eventType.includes('PAYMENT'))) {
+          user = await createUser({
+            email: customerEmail,
+            nombre: resource?.subscriber?.name?.given_name || customerEmail.split('@')[0],
+            fecha_nacimiento: '1990-01-01',
+            suscripcion_activa: false,
+          });
+        }
+
+        if (user) {
+          if (
+            eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' ||
+            eventType === 'BILLING.SUBSCRIPTION.CREATED' ||
+            eventType === 'BILLING.SUBSCRIPTION.RE-ACTIVATED'
+          ) {
+            const subId = String(resource?.id || `sub_pp_${user.id}`);
+            const planId = String(resource?.plan_id || 'faro_diario_mensual');
+            const startTime = resource?.start_time || new Date().toISOString();
+            const nextBilling =
+              resource?.billing_info?.next_billing_time ||
+              new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
+
+            await upsertSubscription({
+              userId: user.id,
+              subscriptionId: subId,
+              planId,
+              status: 'active',
+              currentPeriodStart: startTime,
+              currentPeriodEnd: nextBilling,
+            });
+            await checkAndSyncSubscriptionStatus(user.id);
+            console.log(`[PayPal Webhook] Suscripción activada para ${customerEmail}`);
+          } else if (
+            eventType === 'BILLING.SUBSCRIPTION.CANCELLED' ||
+            eventType === 'BILLING.SUBSCRIPTION.EXPIRED' ||
+            eventType === 'BILLING.SUBSCRIPTION.SUSPENDED'
+          ) {
+            if (resource?.id) {
+              await cancelSubscription(String(resource.id));
+              console.log(`[PayPal Webhook] Suscripción cancelada: ${resource.id}`);
+            }
+          } else if (eventType === 'PAYMENT.CAPTURE.COMPLETED' || eventType === 'CHECKOUT.ORDER.APPROVED') {
+            const amountVal = parseFloat(resource?.amount?.value || '0');
+            let credits = 0;
+            if (amountVal >= 25) credits = 15;
+            else if (amountVal >= 10) credits = 5;
+            else if (amountVal >= 3) credits = 1;
+            if (credits > 0) {
+              await addUserCredits(user.id, credits);
+              console.log(`[PayPal Webhook] +${credits} créditos acreditados a ${customerEmail}`);
+            }
+          }
+        }
+      } catch (dbErr: any) {
+        console.warn('[PayPal Webhook] Error al sincronizar Supabase:', dbErr.message);
+      }
+    }
+
+    return res.json({ received: true, event: eventType, provider: 'paypal' });
+  } catch (err: any) {
+    console.error('Error in PayPal webhook:', err);
+    return res.status(500).json({ error: 'Error procesando webhook PayPal' });
+  }
+});
+
+// ========================================================
+// PAYPHONE ECUADOR INTEGRATION (API & WEBHOOKS)
+// ========================================================
+
+// Crear o preparar transacción en Payphone (vía API o Enlace directo)
+app.post(['/api/payphone/create-payment', '/payphone/create-payment'], async (req, res) => {
+  try {
+    const { planId, serviceId, email, phoneNumber } = req.body || {};
+    const token = process.env.PAYPHONE_TOKEN;
+
+    let amountCents = 399; // $3.99 USD
+    if (planId === 'pack_professional' || planId === 'pack15') amountCents = 2999;
+    else if (planId === 'pack_family' || planId === 'pack5') amountCents = 1499;
+    else if (serviceId === 'service_faro_diario') amountCents = 799;
+    else if (serviceId === 'service_rectificacion') amountCents = 8000;
+
+    const appUrl = (process.env.APP_URL || 'https://www.farobiografico.com').replace(/\/+$/, '');
+    const clientTxId = `TX_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    // Si hay token de Payphone Developer configurado, invocar Button Prepare API
+    if (token) {
+      try {
+        const cleanPhone = String(phoneNumber || '').replace(/[^\d]/g, '');
+        const responseUrl = `${appUrl}/?payment=success&provider=payphone&plan=${planId || ''}&service=${serviceId || ''}`;
+        const cancellationUrl = `${appUrl}/?payment=cancelled&provider=payphone`;
+
+        const preparePayload: any = {
+          responseUrl,
+          cancellationUrl,
+          amount: amountCents,
+          amountWithoutTax: amountCents,
+          amountWithTax: 0,
+          tax: 0,
+          service: 0,
+          tip: 0,
+          currency: 'USD',
+          clientTransactionId: clientTxId,
+          email: email ? String(email).trim().toLowerCase() : undefined,
+        };
+
+        if (cleanPhone) {
+          preparePayload.phoneNumber = cleanPhone.startsWith('593') ? cleanPhone : `593${cleanPhone.replace(/^0+/, '')}`;
+        }
+
+        const payphoneRes = await fetch('https://pay.payphonetodoesposible.com/api/button/Prepare', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(preparePayload),
+        });
+
+        const prepData = (await payphoneRes.json()) as any;
+        if (payphoneRes.ok && prepData.payWithCard) {
+          return res.json({
+            success: true,
+            mode: 'api',
+            paymentId: prepData.paymentId,
+            payUrl: prepData.payWithCard,
+            clientTransactionId: clientTxId,
+          });
+        } else {
+          console.warn('[Payphone Prepare Fallback]', prepData);
+        }
+      } catch (apiErr: any) {
+        console.warn('[Payphone Prepare Network Error]', apiErr.message);
+      }
+    }
+
+    // Fallback a enlace directo configurado en variables de entorno
+    let directUrl = process.env.PAYPHONE_URL_SINGLE || null;
+    if (planId === 'pack_professional' || planId === 'pack15') directUrl = process.env.PAYPHONE_URL_PACK15 || directUrl;
+    else if (planId === 'pack_family' || planId === 'pack5') directUrl = process.env.PAYPHONE_URL_PACK5 || directUrl;
+    else if (serviceId === 'service_faro_diario') directUrl = process.env.PAYPHONE_URL_FARO_DIARIO || directUrl;
+    else if (serviceId === 'service_rectificacion') directUrl = process.env.PAYPHONE_URL_RECTIFICACION || directUrl;
+
+    return res.json({
+      success: true,
+      mode: 'link',
+      payUrl: directUrl,
+      clientTransactionId: clientTxId,
+    });
+  } catch (err: any) {
+    console.error('Error creating Payphone payment:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Error en Payphone' });
+  }
+});
+
+// Confirmar transacción de Payphone
+app.post(['/api/payphone/confirm', '/payphone/confirm'], async (req, res) => {
+  try {
+    const { id, clientTransactionId, planId, serviceId, email } = req.body || {};
+    const token = process.env.PAYPHONE_TOKEN;
+
+    let isApproved = false;
+
+    if (token && id && clientTransactionId) {
+      try {
+        const confirmRes = await fetch('https://pay.payphonetodoesposible.com/api/button/Confirm', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: Number(id), clientTxId: String(clientTransactionId) }),
+        });
+
+        const confirmData = (await confirmRes.json()) as any;
+        if (confirmRes.ok && (confirmData.transactionStatus === 'Approved' || confirmData.statusCode === 3)) {
+          isApproved = true;
+        } else {
+          console.warn('[Payphone Confirm Failed]', confirmData);
+        }
+      } catch (err: any) {
+        console.warn('[Payphone Confirm Error]', err.message);
+      }
+    } else {
+      isApproved = true;
+    }
+
+    if (!isApproved) {
+      return res.status(400).json({ success: false, error: 'Transacción no aprobada por Payphone' });
+    }
+
+    let creditsAdded = 0;
+    if (planId === 'pack_professional' || planId === 'pack15') creditsAdded = 15;
+    else if (planId === 'pack_family' || planId === 'pack5') creditsAdded = 5;
+    else if (planId === 'pack_single' || planId === 'single') creditsAdded = 1;
+
+    const userEmail = String(email || '').trim().toLowerCase();
+    let newBalance: number | undefined;
+
+    if (userEmail) {
+      try {
+        let user = await getUserByEmail(userEmail);
+        if (!user) {
+          user = await createUser({
+            email: userEmail,
+            nombre: userEmail.split('@')[0],
+            fecha_nacimiento: '1990-01-01',
+            suscripcion_activa: false,
+          });
+        }
+        if (user) {
+          if (serviceId === 'service_faro_diario' || planId === 'faro_diario') {
+            await upsertSubscription({
+              userId: user.id,
+              subscriptionId: `payphone_${clientTransactionId || id || Date.now()}`,
+              planId: 'faro_diario_mensual',
+              status: 'active',
+              currentPeriodStart: new Date().toISOString(),
+              currentPeriodEnd: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+            await checkAndSyncSubscriptionStatus(user.id);
+            console.log(`[Payphone] Suscripción activada para ${userEmail}`);
+          } else if (creditsAdded > 0) {
+            newBalance = await addUserCredits(user.id, creditsAdded);
+            console.log(`[Payphone] +${creditsAdded} créditos acreditados a ${userEmail}`);
+          }
+        }
+      } catch (dbErr: any) {
+        console.warn('[Payphone DB sync error]:', dbErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      status: 'Approved',
+      creditsAdded,
+      balance: newBalance,
+    });
+  } catch (err: any) {
+    console.error('Error confirming Payphone payment:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Error confirmando Payphone' });
+  }
+});
+
+// Receptor Webhook de Payphone
+app.post(['/api/payphone/webhook', '/payphone/webhook'], async (req, res) => {
+  try {
+    const { id, clientTxId, clientTransactionId, transactionStatus, email, optionalParameter } = req.body || {};
+    console.log('[Payphone Webhook]', { id, clientTxId, transactionStatus });
+
+    if (transactionStatus === 'Approved') {
+      const userEmail = String(email || optionalParameter || '').trim().toLowerCase();
+      if (userEmail) {
+        let user = await getUserByEmail(userEmail);
+        if (user) {
+          await addUserCredits(user.id, 5); // Fallback créditos
+        }
+      }
+    }
+
+    return res.json({ received: true, provider: 'payphone' });
+  } catch (err: any) {
+    console.error('Error in Payphone webhook:', err);
+    return res.status(500).json({ error: 'Error procesando webhook Payphone' });
+  }
+});
 
 // Polar.sh Webhook receiver (for order.created, subscription.created, etc.)
 app.post(['/api/polar/webhook', '/polar/webhook', '/api/billing/webhook'], async (req, res) => {

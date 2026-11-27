@@ -31,9 +31,9 @@ interface CreditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreditsUpdated?: (newBalance: number) => void;
-  onOpenLegal?: (tab?: 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide') => void;
+  onOpenLegal?: (tab?: 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide' | 'payment_guide') => void;
   initialTab?: 'credits' | 'services';
-  onRequestSubscribeFaroDiario?: (checkoutUrl?: string | null) => void;
+  onRequestSubscribeFaroDiario?: (checkoutUrl?: string | null, provider?: 'paypal' | 'payphone') => void;
 }
 
 export const CreditModal: React.FC<CreditModalProps> = ({
@@ -45,6 +45,7 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   onRequestSubscribeFaroDiario,
 }) => {
   const [activeTab, setActiveTab] = useState<'credits' | 'services'>(initialTab);
+  const [paymentGateway, setPaymentGateway] = useState<'paypal' | 'payphone'>('paypal');
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -58,7 +59,8 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   const [voucherMsg, setVoucherMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
-  const [hasLivePolar, setHasLivePolar] = useState(false);
+  const [hasLivePayPal, setHasLivePayPal] = useState(false);
+  const [hasLivePayphone, setHasLivePayphone] = useState(false);
   const currentBalance = getCreditBalance();
 
   // Fetch billing configuration from backend
@@ -72,7 +74,14 @@ export const CreditModal: React.FC<CreditModalProps> = ({
           setPlans((prevPlans) =>
             prevPlans.map((p) => {
               const remote = data.plans.find((rp: any) => rp.id === p.id);
-              return remote ? { ...p, checkoutUrl: remote.checkoutUrl } : p;
+              return remote
+                ? {
+                    ...p,
+                    checkoutUrl: remote.checkoutUrl,
+                    paypalCheckoutUrl: remote.paypalCheckoutUrl || remote.checkoutUrl,
+                    payphoneCheckoutUrl: remote.payphoneCheckoutUrl,
+                  }
+                : p;
             })
           );
         }
@@ -84,18 +93,20 @@ export const CreditModal: React.FC<CreditModalProps> = ({
                 ? {
                     ...s,
                     checkoutUrl: remote.checkoutUrl,
+                    paypalCheckoutUrl: remote.paypalCheckoutUrl || remote.checkoutUrl,
+                    payphoneCheckoutUrl: remote.payphoneCheckoutUrl,
+                    paypalPlanId: remote.paypalPlanId,
                     externalLink: remote.calendarUrl || s.externalLink,
                   }
                 : s;
             })
           );
         }
-        if (data?.hasLivePolar) {
-          setHasLivePolar(true);
-        }
+        if (data?.hasLivePayPal) setHasLivePayPal(true);
+        if (data?.hasLivePayphone) setHasLivePayphone(true);
       })
       .catch((err) => {
-        console.warn('Could not load Polar.sh billing config:', err);
+        console.warn('Could not load billing config:', err);
       });
 
     return () => {
@@ -105,41 +116,101 @@ export const CreditModal: React.FC<CreditModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePurchase = (plan: PricingPlan) => {
+  const handlePurchase = async (plan: PricingPlan) => {
     setIsProcessing(true);
     setPurchaseSuccess(null);
     setVoucherMsg(null);
 
-    // If a direct Polar.sh checkout link is configured:
-    if (plan.checkoutUrl) {
-      window.open(plan.checkoutUrl, '_blank', 'noopener,noreferrer');
-      setIsProcessing(false);
-      return;
+    // 1. Caso PayPal
+    if (paymentGateway === 'paypal') {
+      if (plan.paypalCheckoutUrl) {
+        window.open(plan.paypalCheckoutUrl, '_blank', 'noopener,noreferrer');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Probar crear orden vía API REST de PayPal
+      try {
+        const orderRes = await fetch('/api/paypal/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id }),
+        });
+        const orderData = await orderRes.json();
+        if (orderData.success && orderData.approvalUrl) {
+          window.open(orderData.approvalUrl, '_blank', 'noopener,noreferrer');
+          setIsProcessing(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('PayPal create-order API fallback:', e);
+      }
     }
 
-    // Default simulation / test fulfillment with Polar provider tag
+    // 2. Caso Payphone Ecuador
+    if (paymentGateway === 'payphone') {
+      if (plan.payphoneCheckoutUrl) {
+        window.open(plan.payphoneCheckoutUrl, '_blank', 'noopener,noreferrer');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Probar crear transacción en Payphone
+      try {
+        const payphoneRes = await fetch('/api/payphone/create-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id }),
+        });
+        const payphoneData = await payphoneRes.json();
+        if (payphoneData.success && payphoneData.payUrl) {
+          window.open(payphoneData.payUrl, '_blank', 'noopener,noreferrer');
+          setIsProcessing(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Payphone create-payment fallback:', e);
+      }
+    }
+
+    // 3. Fallback de simulación / prueba para desarrollo
+    const providerLabel = paymentGateway === 'paypal' ? 'PayPal Business' : 'Payphone Ecuador';
     setTimeout(() => {
       const updated = addCredits(
         plan.credits,
-        `Adquisición de ${plan.name} ($${plan.priceUsd} USD) vía Polar.sh`,
+        `Adquisición de ${plan.name} ($${plan.priceUsd} USD) vía ${providerLabel}`,
         'purchase',
-        'polar',
-        'POLAR_TX_' + Math.random().toString(36).substring(2, 9).toUpperCase()
+        paymentGateway,
+        `${paymentGateway.toUpperCase()}_TX_${Math.random().toString(36).substring(2, 9).toUpperCase()}`
       );
       setIsProcessing(false);
       setPurchaseSuccess(
-        `¡Pago procesado con Polar.sh! Se han acreditado +${plan.credits} créditos a tu monedero vital.`
+        `¡Pago procesado con ${providerLabel}! Se han acreditado +${plan.credits} créditos a tu monedero vital.`
       );
       if (onCreditsUpdated) onCreditsUpdated(updated);
     }, 900);
   };
 
-  const handleServiceAction = (service: ConsultingService) => {
+  const handleServiceAction = async (service: ConsultingService) => {
     if (service.id === 'service_faro_diario') {
       if (onRequestSubscribeFaroDiario) {
-        onRequestSubscribeFaroDiario(service.checkoutUrl);
+        const targetUrl =
+          paymentGateway === 'paypal'
+            ? service.paypalCheckoutUrl || service.checkoutUrl
+            : service.payphoneCheckoutUrl || service.checkoutUrl;
+        onRequestSubscribeFaroDiario(targetUrl, paymentGateway);
         return;
       }
+    }
+
+    if (paymentGateway === 'paypal' && service.paypalCheckoutUrl) {
+      window.open(service.paypalCheckoutUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (paymentGateway === 'payphone' && service.payphoneCheckoutUrl) {
+      window.open(service.payphoneCheckoutUrl, '_blank', 'noopener,noreferrer');
+      return;
     }
 
     if (service.checkoutUrl) {
@@ -156,9 +227,10 @@ export const CreditModal: React.FC<CreditModalProps> = ({
       return;
     }
 
-    // Fallback info message
     alert(
-      `Para adquirir "${service.name}", configura el enlace de checkout de Polar.sh correspondiente en tu archivo de entorno (.env).`
+      `Para adquirir "${service.name}", configura el enlace de checkout o clave API de ${
+        paymentGateway === 'paypal' ? 'PayPal' : 'Payphone'
+      } en tu archivo .env.`
     );
   };
 
@@ -190,7 +262,7 @@ export const CreditModal: React.FC<CreditModalProps> = ({
               Planes, Reportes y Consultoría Especializada
             </h2>
             <p className="text-xs text-stone-400 mt-1 max-w-2xl">
-              Cálculo de cartas y cronología de septenios 100% libre. Pagos protegidos y procesados por <strong>Polar.sh</strong> (Merchant of Record).
+              Cálculo de cartas y cronología de septenios 100% libre. Pagos globales protegidos por <strong>PayPal Business</strong> y <strong>Payphone Ecuador</strong>.
             </p>
           </div>
 
@@ -234,6 +306,41 @@ export const CreditModal: React.FC<CreditModalProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {/* Selector de Pasarela de Pago: PayPal (Global) vs Payphone (Ecuador) */}
+          <div className="p-3 bg-stone-950/90 rounded-xl border border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-stone-300">
+              <CreditCard className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="font-medium">Pasarela de pago:</span>
+              <span className="text-[11px] text-stone-400 hidden md:inline">
+                ({paymentGateway === 'paypal' ? 'Visa, Mastercard, Amex, PayPal' : 'Tarjetas locales Ecuador / Payphone app'})
+              </span>
+            </div>
+            <div className="inline-flex rounded-lg bg-stone-900 p-1 border border-stone-800 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setPaymentGateway('paypal')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  paymentGateway === 'paypal'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <span>🌎 PayPal (Global)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentGateway('payphone')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  paymentGateway === 'payphone'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <span>🇪🇨 Payphone (Ecuador)</span>
+              </button>
+            </div>
+          </div>
+
           {/* TAB 1: PAQUETES DE CRÉDITOS */}
           {activeTab === 'credits' && (
             <>
@@ -290,6 +397,11 @@ export const CreditModal: React.FC<CreditModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {plans.map((plan) => {
                   const isSelected = selectedPlan.id === plan.id;
+                  const targetCheckout =
+                    paymentGateway === 'paypal'
+                      ? plan.paypalCheckoutUrl || plan.checkoutUrl
+                      : plan.payphoneCheckoutUrl || plan.checkoutUrl;
+
                   return (
                     <div
                       key={plan.id}
@@ -357,10 +469,12 @@ export const CreditModal: React.FC<CreditModalProps> = ({
                         <CreditCard className="w-3.5 h-3.5" />
                         <span>
                           {isProcessing
-                            ? 'Conectando con Polar.sh...'
-                            : `Adquirir (${plan.credits} ${plan.credits === 1 ? 'Crédito' : 'Créditos'})`}
+                            ? 'Conectando con pasarela...'
+                            : paymentGateway === 'paypal'
+                            ? `Adquirir vía PayPal (${plan.credits} ${plan.credits === 1 ? 'Crédito' : 'Créditos'})`
+                            : `Adquirir vía Payphone (${plan.credits} ${plan.credits === 1 ? 'Crédito' : 'Créditos'})`}
                         </span>
-                        {plan.checkoutUrl && <ExternalLink className="w-3 h-3 ml-0.5" />}
+                        {targetCheckout && <ExternalLink className="w-3 h-3 ml-0.5" />}
                       </button>
                     </div>
                   );
@@ -510,23 +624,23 @@ export const CreditModal: React.FC<CreditModalProps> = ({
             </div>
           )}
 
-          {/* Polar.sh Payment Provider Assurance Badge */}
+          {/* PayPal & Payphone Provider Assurance Badge */}
           <div className="p-4 rounded-xl bg-stone-950/70 border border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-lg shrink-0">
-                ❄️
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-lg shrink-0">
+                🛡️
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-stone-200">
-                    Procesado por Polar.sh
+                    Procesado por PayPal Business &amp; Payphone
                   </span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    Merchant of Record
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Verificado PCI-DSS
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  Acepta Tarjetas (Visa, Mastercard, Amex), Apple Pay, Google Pay y pagos globales de forma 100% segura y automatizada.
+                  Acepta Tarjetas Internacionales (Visa, Mastercard, Amex vía PayPal) y Tarjetas de Ecuador (Débito/Crédito y App vía Payphone) de forma 100% segura.
                 </p>
               </div>
             </div>
@@ -571,15 +685,15 @@ export const CreditModal: React.FC<CreditModalProps> = ({
           {/* Footer note & transparency */}
           <div className="text-[11px] text-stone-500 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-stone-800/60 pt-4">
             <span>
-              Pagos procesados por Polar Software Inc. (Merchant of Record) • Moneda: USD
+              Pagos procesados de forma segura con PayPal Business y Payphone • Moneda: USD
             </span>
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => onOpenLegal?.('polar_guide')}
-                className="text-blue-400 hover:text-blue-300 underline transition-colors cursor-pointer"
+                onClick={() => onOpenLegal?.('payment_guide')}
+                className="text-amber-400 hover:text-amber-300 underline transition-colors cursor-pointer"
               >
-                ¿Cómo configurar Polar.sh?
+                ¿Cómo configurar PayPal y Payphone?
               </button>
               <button
                 type="button"

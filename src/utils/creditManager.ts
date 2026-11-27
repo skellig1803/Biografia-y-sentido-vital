@@ -1,4 +1,4 @@
-// Credit and Pay-Per-Use management system with Polar.sh integration
+// Credit and Pay-Per-Use management system with PayPal & Payphone integration
 export interface CreditTransaction {
   id: string;
   timestamp: string;
@@ -6,7 +6,7 @@ export interface CreditTransaction {
   amount: number; // positive for addition, negative for deduction
   description: string;
   balanceAfter: number;
-  provider?: 'polar' | 'voucher' | 'system' | 'lemonsqueezy';
+  provider?: 'paypal' | 'payphone' | 'polar' | 'voucher' | 'system' | 'lemonsqueezy';
   referenceId?: string;
 }
 
@@ -23,6 +23,8 @@ export interface PricingPlan {
   savingsPercent?: number;
   features: string[];
   checkoutUrl?: string;
+  paypalCheckoutUrl?: string;
+  payphoneCheckoutUrl?: string;
 }
 
 export interface ConsultingService {
@@ -37,6 +39,9 @@ export interface ConsultingService {
   deliverable: string;
   features: string[];
   checkoutUrl?: string;
+  paypalCheckoutUrl?: string;
+  payphoneCheckoutUrl?: string;
+  paypalPlanId?: string;
   externalLink?: string;
 }
 
@@ -113,7 +118,7 @@ export const CONSULTING_SERVICES: ConsultingService[] = [
       'Análisis diario de tránsitos activos, aspectos benéficos y conflictos a transformar',
       'Audio sintetizado con voz cálida y natural listo para escuchar en 1 toque',
       'Entrega directa en tu chat de WhatsApp cada mañana a primera hora',
-      'Suscripción mensual recurrente vía Polar.sh (cancela con un clic en cualquier momento)',
+      'Suscripción mensual recurrente vía PayPal ($7.99/mes) o Payphone Ecuador (cancela en cualquier momento)',
     ],
   },
   {
@@ -274,7 +279,7 @@ export function addCredits(
   amount: number,
   description: string,
   type: 'purchase' | 'voucher' | 'initial' = 'purchase',
-  provider: 'polar' | 'voucher' | 'system' | 'lemonsqueezy' = 'purchase' === type ? 'polar' : 'system',
+  provider: 'paypal' | 'payphone' | 'polar' | 'voucher' | 'system' | 'lemonsqueezy' = 'purchase' === type ? 'paypal' : 'system',
   referenceId?: string
 ): number {
   const current = getCreditBalance();

@@ -14,7 +14,7 @@ import {
   Calendar,
 } from 'lucide-react';
 
-export type LegalTab = 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide';
+export type LegalTab = 'terms' | 'refund' | 'privacy' | 'compliance' | 'polar_guide' | 'payment_guide';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -123,15 +123,15 @@ export const LegalModal: React.FC<LegalModalProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTab('polar_guide')}
+            onClick={() => setActiveTab('payment_guide')}
             className={`py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-              activeTab === 'polar_guide'
-                ? 'border-blue-400 text-blue-300 bg-blue-500/5'
+              activeTab === 'payment_guide' || activeTab === 'polar_guide'
+                ? 'border-amber-400 text-amber-300 bg-amber-500/5'
                 : 'border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-800/30'
             }`}
           >
-            <HelpCircle className="w-4 h-4 text-blue-400" />
-            <span>Guía Polar.sh</span>
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+            <span>Guía PayPal &amp; Payphone</span>
           </button>
         </div>
 
@@ -297,7 +297,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               <div>
                 <h4 className="font-bold text-stone-100 text-sm mb-2">2. Seguridad en las Transacciones de Pago</h4>
                 <p className="text-stone-300 text-xs sm:text-sm">
-                  Faro Biográfico <strong>nunca almacena, procesa ni tiene acceso a tus números de tarjeta de crédito, CVV o credenciales bancarias</strong>. Todos los datos de pago son gestionados directamente por los servidores seguros y certificados PCI-DSS Nivel 1 de <strong>Polar.sh</strong> y sus proveedores de infraestructura bancaria.
+                  Faro Biográfico <strong>nunca almacena, procesa ni tiene acceso a tus números de tarjeta de crédito, CVV o credenciales bancarias</strong>. Todos los datos de pago son gestionados directamente por los servidores seguros y certificados PCI-DSS de <strong>PayPal Business</strong> y <strong>Payphone Ecuador</strong> y sus proveedores de infraestructura bancaria.
                 </p>
               </div>
 
@@ -319,7 +319,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                   Identificación Comercial y Declaración de Cumplimiento
                 </h3>
                 <p className="text-xs text-stone-300">
-                  Esta información está diseñada para la verificación y auditoría por parte de los equipos de Risk & Compliance de pasarelas de pago (Polar.sh, Stripe, Paddle, Lemon Squeezy).
+                  Esta información está diseñada para la verificación y auditoría por parte de los equipos de Risk & Compliance de pasarelas de pago (PayPal Business, Payphone, etc.).
                 </p>
               </div>
 
@@ -342,7 +342,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
               <div>
                 <h4 className="font-bold text-stone-100 text-sm mb-2">Descripción del Negocio para Revisión de Compliance:</h4>
                 <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300 leading-relaxed font-mono">
-                  &ldquo;Faro Biográfico is a personal development and biographical analysis SaaS platform. It combines astronomical ephemeris algorithms and biographical septennial life cycle methodologies to generate automated, AI-assisted self-reflection reports for individuals, coaches, and counselors. The business sells digital software credits for automated reports and an optional daily personal development audio subscription processed via Polar.sh as Merchant of Record. It does not provide fortune-telling, occultism, or medical advice.&rdquo;
+                  &ldquo;Faro Biográfico is a personal development and biographical analysis SaaS platform. It combines astronomical ephemeris algorithms and biographical septennial life cycle methodologies to generate automated, AI-assisted self-reflection reports for individuals, coaches, and counselors. The business sells digital software credits for automated reports and an optional daily personal development audio subscription processed securely via PayPal Business and Payphone Ecuador. It does not provide fortune-telling, occultism, or medical advice.&rdquo;
                 </div>
               </div>
 
@@ -353,123 +353,155 @@ export const LegalModal: React.FC<LegalModalProps> = ({
                 </p>
                 <div className="mt-2 text-xs text-stone-300 space-y-1">
                   <div><strong>Email de Soporte:</strong> soporte@farobiografico.com / rodriguezb.jl@gmail.com</div>
+                  <div><strong>WhatsApp Oficial:</strong> +593 99 942 9478</div>
                   <div><strong>Tiempo de Respuesta Estimado:</strong> Máximo 24 a 48 horas laborables.</div>
-                  <div><strong>Plataforma de Facturación:</strong> Polar Software Inc. (Merchant of Record).</div>
+                  <div><strong>Pasarelas Integradas:</strong> PayPal Business (Global) y Payphone Ecuador (Pagos Locales).</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: GUÍA PARA ACTIVAR POLAR.SH */}
-          {activeTab === 'polar_guide' && (
+          {/* TAB 5: GUÍA DE CONFIGURACIÓN PAYPAL & PAYPHONE */}
+          {(activeTab === 'payment_guide' || activeTab === 'polar_guide') && (
             <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-stone-200">
-                <h3 className="font-semibold text-blue-300 text-sm sm:text-base flex items-center gap-2 mb-1">
-                  <HelpCircle className="w-4 h-4 text-blue-400" />
-                  Guía Paso a Paso: Cómo Obtener los Datos Requeridos de Polar.sh
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-stone-200">
+                <h3 className="font-semibold text-amber-300 text-sm sm:text-base flex items-center gap-2 mb-1">
+                  <HelpCircle className="w-4 h-4 text-amber-400" />
+                  Guía Paso a Paso: Configuración de PayPal Business y Payphone
                 </h3>
                 <p className="text-xs text-stone-300">
-                  Sigue estos pasos sencillos en tu panel de <a href="https://polar.sh" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline font-semibold">polar.sh</a> para crear los productos y obtener los enlaces directos o claves de integración.
+                  Esta combinación es la solución óptima: <strong>PayPal Business</strong> te permite cobrar suscripciones y paquetes a clientes de todo el mundo sin restricciones territoriales, y <strong>Payphone</strong> permite a clientes en Ecuador pagar directamente con tarjetas locales o desde su app bancaria.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">1</span>
-                    <h4 className="font-bold text-stone-100 text-sm">Crea tu Organización en Polar.sh</h4>
+              <div className="space-y-5">
+                {/* SECCIÓN 1: PAYPAL BUSINESS */}
+                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500 text-stone-950 font-bold text-xs flex items-center justify-center">1</span>
+                    <h4 className="font-bold text-stone-100 text-sm">Parte 1: Configurar PayPal Business (Suscripciones &amp; Global)</h4>
                   </div>
-                  <p className="text-xs text-stone-300 pl-7">
-                    Ve a <strong>polar.sh</strong> e inicia sesión (puedes usar GitHub o correo). Crea una organización, por ejemplo: <code>faro-biografico</code>. El nombre o identificador que elijas es tu <strong>POLAR_ORGANIZATION_SLUG</strong>.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">2</span>
-                    <h4 className="font-bold text-stone-100 text-sm">Crea los Productos según tu Tabla de Precios</h4>
-                  </div>
-                  <div className="text-xs text-stone-300 pl-7 space-y-2">
-                    <p>En el menú lateral de Polar.sh, haz clic en <strong>Products &gt; New Product</strong> para cada uno de los siguientes:</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-                      <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800">
-                        <strong className="text-stone-200 block">1. Reporte Vital</strong>
-                        <span className="text-emerald-400 font-bold">$3.99 USD</span>
-                        <div className="text-[11px] text-stone-400">Tipo: One-time payment</div>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800">
-                        <strong className="text-stone-200 block">2. Pack 5 Reportes</strong>
-                        <span className="text-emerald-400 font-bold">$14.99 USD</span>
-                        <div className="text-[11px] text-stone-400">Tipo: One-time payment</div>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800">
-                        <strong className="text-stone-200 block">3. Pack Profesional (15)</strong>
-                        <span className="text-emerald-400 font-bold">$29.99 USD</span>
-                        <div className="text-[11px] text-stone-400">Tipo: One-time payment</div>
-                      </div>
+                  
+                  <div className="text-xs text-stone-300 pl-8 space-y-3">
+                    <div>
+                      <strong className="text-amber-300 block mb-1">A. Crear Plan de Suscripción de $7.99/mes (Faro Diario):</strong>
+                      <p className="leading-relaxed">
+                        1. Entra a tu cuenta en <strong>paypal.com</strong> (debe ser cuenta Business/Empresas).
+                        <br />
+                        2. Ve a <strong>Herramientas de Pago &gt; Suscripciones</strong> o en Developer en <strong>Billing Plans</strong>.
+                        <br />
+                        3. Crea un nuevo plan llamado <code>Faro Diario - Suscripción Mensual</code>, frecuencia mensual, precio: <code>$7.99 USD</code>.
+                        <br />
+                        4. Al guardarlo, PayPal te entregará un <strong>Plan ID</strong> (ej. <code>P-5ML4271244454362WXNWU5NQ</code>) y un enlace de suscripción directo.
+                        <br />
+                        5. Pega ese enlace en <code>PAYPAL_CHECKOUT_URL_FARO_DIARIO</code> o el ID en <code>PAYPAL_PLAN_ID_FARO_DIARIO</code>.
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                      <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800">
-                        <strong className="text-stone-200 block">4. Faro Diario (Audio PWA)</strong>
-                        <span className="text-cyan-400 font-bold">$7.99 USD / mes</span>
-                        <div className="text-[11px] text-stone-400">Tipo: Recurring Subscription (Monthly)</div>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800">
-                        <strong className="text-stone-200 block">5. Rectificación Artesanal</strong>
-                        <span className="text-amber-400 font-bold">$80.00 USD</span>
-                        <div className="text-[11px] text-stone-400">Tipo: One-time payment</div>
-                      </div>
+                    <div>
+                      <strong className="text-amber-300 block mb-1">B. Obtener Client ID y Secret para Cobros de Créditos:</strong>
+                      <p className="leading-relaxed">
+                        1. Ingresa en <strong>developer.paypal.com &gt; Apps &amp; Credentials</strong>.
+                        <br />
+                        2. Crea una App llamada <code>FaroBiografico</code>.
+                        <br />
+                        3. Copia el <strong>Client ID</strong> y <strong>Secret</strong> y colócalos en:
+                      </p>
+                      <code className="block p-2 rounded bg-stone-900 border border-stone-800 text-amber-300 font-mono text-[11px] mt-1">
+                        PAYPAL_CLIENT_ID=&quot;tu_client_id&quot;<br />
+                        PAYPAL_CLIENT_SECRET=&quot;tu_client_secret&quot;<br />
+                        PAYPAL_MODE=&quot;live&quot;
+                      </code>
+                    </div>
+
+                    <div>
+                      <strong className="text-amber-300 block mb-1">C. Webhook de PayPal (Actualizaciones automáticas):</strong>
+                      <p className="leading-relaxed">
+                        En la misma App de PayPal Developer, añade un Webhook apuntando a:
+                        <br />
+                        <code>https://tu-dominio.com/api/paypal/webhook</code>
+                        <br />
+                        Selecciona eventos: <code>Payment sale completed</code>, <code>Billing subscription activated</code>, <code>Billing subscription cancelled</code>.
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">3</span>
-                    <h4 className="font-bold text-stone-100 text-sm">Obtén los Enlaces de Checkout (Checkout URLs)</h4>
+                {/* SECCIÓN 2: PAYPHONE ECUADOR */}
+                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-stone-950 font-bold text-xs flex items-center justify-center">2</span>
+                    <h4 className="font-bold text-stone-100 text-sm">Parte 2: Configurar Payphone (Ecuador - Tarjetas Locales)</h4>
                   </div>
-                  <div className="text-xs text-stone-300 pl-7 space-y-1">
-                    <p>
-                      Al publicar cada producto, Polar te brinda un enlace directo como:
+                  
+                  <div className="text-xs text-stone-300 pl-8 space-y-3">
+                    <p className="leading-relaxed">
+                      Payphone es la pasarela líder en Ecuador y transacciona en <strong>USD</strong> sin problemas de aprobación bancaria. Puedes utilizarla de dos maneras:
                     </p>
-                    <code className="block p-2 rounded bg-stone-900 border border-stone-800 text-blue-300 font-mono text-[11px]">
-                      https://polar.sh/checkout/prod_xxxxxx o https://polar.sh/tu-organizacion/products/slug-del-producto
-                    </code>
-                    <p className="text-stone-400 text-[11px] mt-1">
-                      Esos enlaces se configuran en tus variables de entorno (<code>.env</code> o en el panel de Vercel/Render) como <code>POLAR_CHECKOUT_URL_SINGLE</code>, <code>POLAR_CHECKOUT_URL_PACK5</code>, etc.
-                    </p>
+
+                    <div className="p-3 rounded-lg bg-stone-900 border border-stone-800 space-y-1.5">
+                      <strong className="text-emerald-300 block">Opción Rápida A: Links de Cobro Directos (Sin código):</strong>
+                      <p className="leading-relaxed text-[11px]">
+                        En tu App Payphone o en <code>live.payphone.app</code>, ve a <strong>Cobrar &gt; Crear Link de Pago</strong>. Crea un link fijo para cada producto ($3.99, $14.99, $29.99, $7.99) y colócalos en tu archivo <code>.env</code>:
+                      </p>
+                      <code className="block p-2 rounded bg-stone-950 border border-stone-800 text-emerald-300 font-mono text-[10px]">
+                        PAYPHONE_URL_SINGLE=&quot;https://payphone.app/link/single...&quot;<br />
+                        PAYPHONE_URL_PACK5=&quot;https://payphone.app/link/pack5...&quot;<br />
+                        PAYPHONE_URL_PACK15=&quot;https://payphone.app/link/pack15...&quot;<br />
+                        PAYPHONE_URL_FARO_DIARIO=&quot;https://payphone.app/link/diario...&quot;
+                      </code>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-stone-900 border border-stone-800 space-y-1.5">
+                      <strong className="text-emerald-300 block">Opción B: Token de Desarrollador (Cobro automatizado en pantalla):</strong>
+                      <p className="leading-relaxed text-[11px]">
+                        1. Ingresa en <strong>developer.payphone.app</strong> con tu cuenta Payphone.
+                        <br />
+                        2. En <strong>Aplicaciones</strong>, crea una nueva aplicación y copia el <strong>Token de Desarrollador</strong>.
+                        <br />
+                        3. Asígnalo en tu <code>.env</code> a la variable:
+                      </p>
+                      <code className="block p-2 rounded bg-stone-950 border border-stone-800 text-emerald-300 font-mono text-[10px]">
+                        PAYPHONE_TOKEN=&quot;tu_token_de_desarrollador_payphone&quot;
+                      </code>
+                      <p className="text-[11px] text-stone-400 mt-1">
+                        Con este token, la aplicación genera dinámicamente el botón de cobro e interactúa automáticamente con la pasarela.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">4</span>
-                    <h4 className="font-bold text-stone-100 text-sm">Obtén tu Access Token y Webhook Secret</h4>
+                {/* SECCIÓN 3: RESUMEN VARIABLES .ENV */}
+                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">3</span>
+                    <h4 className="font-bold text-stone-100 text-sm">Resumen de Variables para Vercel o tu archivo .env</h4>
                   </div>
-                  <div className="text-xs text-stone-300 pl-7 space-y-2">
-                    <p>
-                      Para la confirmación automática por backend:
+                  <div className="pl-8">
+                    <p className="text-xs text-stone-400 mb-2">
+                      Copia estas variables a tu panel de Vercel (Settings &gt; Environment Variables) o tu archivo <code>.env</code>:
                     </p>
-                    <ul className="list-disc pl-5 space-y-1 text-stone-300 text-xs">
-                      <li>
-                        <strong>Access Token:</strong> En tu panel de Polar, ve a <strong>Settings &gt; Developers &gt; Personal Access Tokens</strong> y genera uno con permisos sobre tu organización. Asígnalo a <code>POLAR_ACCESS_TOKEN</code>.
-                      </li>
-                      <li>
-                        <strong>Webhooks:</strong> Ve a <strong>Settings &gt; Developers &gt; Webhooks &gt; Add Endpoint</strong>. Introduce la URL de tu app: <code>https://tu-dominio.com/api/webhooks/polar</code> y selecciona los eventos <code>order.created</code> y <code>subscription.created</code>. Copia el secreto asignado en <code>POLAR_WEBHOOK_SECRET</code>.
-                      </li>
-                    </ul>
-                  </div>
-                </div>
+                    <pre className="p-3 rounded-lg bg-stone-900 border border-stone-800 text-amber-200 font-mono text-[11px] overflow-x-auto leading-relaxed">
+{`# Pasarela Principal: PayPal Business (Global)
+PAYPAL_CLIENT_ID=""
+PAYPAL_CLIENT_SECRET=""
+PAYPAL_MODE="live"
+PAYPAL_CHECKOUT_URL_FARO_DIARIO="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=..."
+PAYPAL_PLAN_ID_FARO_DIARIO=""
+PAYPAL_CHECKOUT_URL_SINGLE=""
+PAYPAL_CHECKOUT_URL_PACK5=""
+PAYPAL_CHECKOUT_URL_PACK15=""
+PAYPAL_CHECKOUT_URL_RECTIFICACION=""
 
-                <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-blue-500 text-stone-950 font-bold text-xs flex items-center justify-center">5</span>
-                    <h4 className="font-bold text-stone-100 text-sm">Aprobación de la Cuenta en Polar.sh</h4>
+# Pasarela Paralela: Payphone (Ecuador)
+PAYPHONE_TOKEN=""
+PAYPHONE_URL_SINGLE=""
+PAYPHONE_URL_PACK5=""
+PAYPHONE_URL_PACK15=""
+PAYPHONE_URL_FARO_DIARIO=""
+PAYPHONE_URL_RECTIFICACION=""`}
+                    </pre>
                   </div>
-                  <p className="text-xs text-stone-300 pl-7">
-                    Cuando Polar te solicite los enlaces de tu sitio para verificar tu cumplimiento comercial, solo debes ingresar la URL de tu aplicación. Los auditores de Polar podrán revisar directamente en el pie de página los <strong>Términos de Servicio</strong>, la <strong>Política de Reembolso</strong> y la <strong>Política de Privacidad</strong> que acabamos de implementar.
-                  </p>
                 </div>
               </div>
             </div>
